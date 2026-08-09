@@ -1,0 +1,539 @@
+<title>UI Design Direction — Personal AI Operating System</title>
+<style>
+  :root{
+    --ground:#0A0E13;
+    --surface:#121A22;
+    --surface-2:#182430;
+    --rule:#1F2C38;
+    --rule-soft:#16212B;
+    --ink:#DCE6EE;
+    --ink-2:#A8BAC9;
+    --dim:#7A8D9E;
+    --faint:#4E606F;
+    --accent:#35C9D6;
+    --accent-deep:#1B8F9B;
+    --ok:#4FB477;
+    --warn:#E0A050;
+    --crit:#E0605E;
+    --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:1180px;margin:0 auto;padding:var(--s6) var(--s5) var(--s7);}
+
+  /* ---------- micro-typography ---------- */
+  .legend{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--faint);
+    margin:0;
+  }
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+
+  h1{
+    font-size:clamp(26px,4.2vw,40px);
+    line-height:1.15;
+    margin:var(--s3) 0 var(--s3);
+    font-weight:600;
+    letter-spacing:-.02em;
+    text-wrap:balance;
+  }
+  h2{
+    font-size:13px;
+    font-family:var(--mono);
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 var(--s4);
+    font-weight:600;
+  }
+  h3{font-size:17px;margin:0 0 var(--s2);font-weight:600;letter-spacing:-.01em;}
+  p{margin:0 0 var(--s3);max-width:66ch;color:var(--ink-2);}
+  .lede{font-size:17px;color:var(--ink-2);max-width:62ch;}
+
+  section{margin-top:var(--s7);}
+
+  .rule-top{border-top:1px solid var(--rule);padding-top:var(--s5);}
+
+  /* ---------- palette ---------- */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:var(--s2);}
+  .sw{border:1px solid var(--rule);background:var(--surface);}
+  .sw .chip{height:52px;border-bottom:1px solid var(--rule);}
+  .sw .meta{padding:var(--s2);}
+  .sw .name{font-size:11px;color:var(--ink-2);display:block;}
+  .sw .hex{font-family:var(--mono);font-size:10px;color:var(--faint);}
+
+  /* ---------- type specimen ---------- */
+  .specimen{display:grid;gap:var(--s4);grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+  .spec-card{border:1px solid var(--rule);background:var(--surface);padding:var(--s4);}
+  .spec-card .legend{margin-bottom:var(--s3);}
+
+  /* ---------- device frame ---------- */
+  .screen{
+    border:1px solid var(--rule);
+    background:var(--surface);
+    overflow:hidden;
+  }
+  .titlebar{
+    display:flex;align-items:center;gap:var(--s2);
+    padding:var(--s2) var(--s3);
+    border-bottom:1px solid var(--rule);
+    background:var(--surface-2);
+  }
+  .titlebar .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);}
+  .titlebar .dot.live{background:var(--ok);}
+  .titlebar .path{font-family:var(--mono);font-size:11px;color:var(--dim);}
+
+  .app{display:grid;grid-template-columns:186px 1fr;min-height:520px;}
+  @media (max-width:760px){.app{grid-template-columns:1fr;}}
+
+  /* ---------- left rail ---------- */
+  .rail{border-right:1px solid var(--rule);background:var(--ground);padding:var(--s3) 0;}
+  @media (max-width:760px){.rail{border-right:none;border-bottom:1px solid var(--rule);}}
+  .rail .brand{padding:0 var(--s3) var(--s3);border-bottom:1px solid var(--rule-soft);margin-bottom:var(--s2);}
+  .rail .brand .nm{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--accent);}
+  .rail .brand .sub{font-size:10px;color:var(--faint);font-family:var(--mono);}
+  .navitem{
+    display:flex;align-items:center;justify-content:space-between;gap:var(--s2);
+    padding:6px var(--s3);
+    font-size:12.5px;color:var(--dim);
+    border-left:2px solid transparent;
+  }
+  .navitem.on{color:var(--ink);border-left-color:var(--accent);background:var(--surface);}
+  .navitem .badge{
+    font-family:var(--mono);font-size:9.5px;padding:1px 5px;
+    border:1px solid var(--rule);color:var(--dim);
+  }
+  .navitem .badge.alert{border-color:var(--warn);color:var(--warn);}
+
+  /* ---------- instrument grid ---------- */
+  .panel{padding:var(--s4);display:grid;gap:var(--s3);}
+  .grid-2{display:grid;grid-template-columns:1.35fr 1fr;gap:var(--s3);}
+  @media (max-width:860px){.grid-2{grid-template-columns:1fr;}}
+
+  .inst{border:1px solid var(--rule);background:var(--ground);position:relative;}
+  .inst > .bar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6px var(--s3);border-bottom:1px solid var(--rule-soft);
+  }
+  .inst > .body{padding:var(--s3);}
+  .stripe{position:absolute;left:0;top:0;bottom:0;width:2px;}
+  .stripe.ok{background:var(--ok);}
+  .stripe.warn{background:var(--warn);}
+  .stripe.crit{background:var(--crit);}
+  .stripe.idle{background:var(--rule);}
+
+  .pill{
+    display:inline-block;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border:1px solid;
+  }
+  .pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);}
+  .pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);}
+  .pill.crit{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,transparent);}
+  .pill.idle{color:var(--dim);border-color:var(--rule);}
+  .pill.accent{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);}
+
+  .big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:30px;line-height:1.1;letter-spacing:-.02em;}
+  .mid{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;}
+  .kv{display:flex;justify-content:space-between;gap:var(--s3);padding:3px 0;font-size:12.5px;}
+  .kv .k{color:var(--dim);}
+  .kv .v{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink);}
+
+  /* progress rail */
+  .track{height:6px;background:var(--surface-2);position:relative;margin:var(--s3) 0 var(--s2);}
+  .track .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-deep);}
+  .track .need{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--warn);}
+
+  /* sparkline */
+  .spark{display:block;width:100%;height:44px;}
+
+  /* task rows */
+  .row{
+    display:grid;grid-template-columns:34px 1fr auto;gap:var(--s3);align-items:center;
+    padding:var(--s2) 0;border-bottom:1px solid var(--rule-soft);
+  }
+  .row:last-child{border-bottom:none;}
+  .band{
+    font-family:var(--mono);font-size:10px;text-align:center;padding:2px 0;
+    border:1px solid;
+  }
+  .band.p1{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 50%,transparent);}
+  .band.p2{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent);}
+  .band.p3{color:var(--dim);border-color:var(--rule);}
+  .band.p4{color:var(--faint);border-color:var(--rule-soft);}
+  .row .title{font-size:13.5px;}
+  .row .why{font-size:11px;color:var(--dim);}
+  .row .meta{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap;}
+
+  /* assessment block */
+  .assess{border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);background:color-mix(in srgb,var(--accent) 5%,var(--ground));}
+  .chain{display:grid;gap:2px;margin-top:var(--s2);}
+  .chain .step{display:grid;grid-template-columns:88px 1fr;gap:var(--s3);padding:3px 0;font-size:12.5px;}
+  .chain .step .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding-top:3px;}
+
+  /* ---------- office ---------- */
+  .desks{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:var(--s3);}
+  .desk{border:1px solid var(--rule);background:var(--ground);position:relative;padding:var(--s3);}
+  .desk .role{font-size:13px;font-weight:600;margin-bottom:2px;}
+  .desk .doing{font-size:11.5px;color:var(--dim);min-height:32px;}
+  .desk .foot{display:flex;justify-content:space-between;align-items:center;margin-top:var(--s2);padding-top:var(--s2);border-top:1px solid var(--rule-soft);}
+  .desk .foot .t{font-family:var(--mono);font-size:10.5px;color:var(--faint);}
+
+  .beat{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle;}
+  @media (prefers-reduced-motion:no-preference){
+    .beat{animation:pulse 1.9s ease-in-out infinite;}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.32;}}
+  }
+
+  /* ---------- phone ---------- */
+  .phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--s4);align-items:start;}
+  .phone{border:1px solid var(--rule);background:var(--ground);max-width:330px;margin:0 auto;width:100%;}
+  .phone .status{display:flex;justify-content:space-between;padding:5px var(--s3);border-bottom:1px solid var(--rule-soft);font-family:var(--mono);font-size:10px;color:var(--faint);}
+  .phone .content{padding:var(--s3);display:grid;gap:var(--s3);}
+  .shot{border:1px solid var(--rule);background:var(--surface-2);aspect-ratio:16/10;position:relative;overflow:hidden;}
+  .shot .fauxwin{position:absolute;border:1px solid var(--rule);background:var(--surface);}
+  .shot .cap{position:absolute;left:0;right:0;bottom:0;padding:4px 6px;background:color-mix(in srgb,var(--ground) 82%,transparent);font-family:var(--mono);font-size:9.5px;color:var(--dim);}
+  .cmdbox{display:flex;border:1px solid var(--rule);background:var(--surface);}
+  .cmdbox .txt{flex:1;padding:var(--s2) var(--s3);font-size:12.5px;color:var(--ink-2);}
+  .cmdbox .go{padding:var(--s2) var(--s3);border-left:1px solid var(--rule);color:var(--accent);font-family:var(--mono);font-size:11px;}
+
+  .msg{border:1px solid var(--rule);padding:var(--s2) var(--s3);font-size:12.5px;}
+  .msg.inbound{background:var(--surface);}
+  .msg.outbound{background:color-mix(in srgb,var(--accent) 7%,var(--ground));border-color:color-mix(in srgb,var(--accent) 26%,transparent);}
+  .msg .who{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:3px;}
+
+  /* ---------- notes ---------- */
+  .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--s3);}
+  .note{border:1px solid var(--rule);background:var(--surface);padding:var(--s4);}
+  .note h3{color:var(--accent);font-size:14px;}
+  .note p{font-size:13px;margin-bottom:0;}
+
+  .caption{font-size:12.5px;color:var(--dim);margin-top:var(--s2);max-width:70ch;}
+  .scroll{overflow-x:auto;}
+  a{color:var(--accent);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+</style>
+
+<div class="wrap">
+
+  <p class="legend">Design direction &middot; 10 Aug 2026</p>
+  <h1>A glass cockpit, not a hologram</h1>
+  <p class="lede">You asked for a JARVIS HUD. The PRD says usability outranks the metaphor. This resolves that
+    by reading &ldquo;HUD&rdquo; as <strong>instrumentation</strong> &mdash; an aircraft glass cockpit, mission-control
+    telemetry &mdash; rather than glowing sci-fi decoration. Every panel is an instrument: a label bar, a severity
+    stripe, and data set in tabular figures.</p>
+
+  <section class="rule-top">
+    <h2>Palette</h2>
+    <p>The ground is a blue-biased black, not neutral grey &mdash; it reads as a lit panel rather than an empty page.
+      Accent cyan is desaturated so it never shouts. Semantic colours stay separate from the accent, so
+      &ldquo;behind trajectory&rdquo; never competes with &ldquo;this is interactive.&rdquo;</p>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#0A0E13"></div><div class="meta"><span class="name">Ground</span><span class="hex">#0A0E13</span></div></div>
+      <div class="sw"><div class="chip" style="background:#121A22"></div><div class="meta"><span class="name">Surface</span><span class="hex">#121A22</span></div></div>
+      <div class="sw"><div class="chip" style="background:#1F2C38"></div><div class="meta"><span class="name">Rule</span><span class="hex">#1F2C38</span></div></div>
+      <div class="sw"><div class="chip" style="background:#35C9D6"></div><div class="meta"><span class="name">Accent</span><span class="hex">#35C9D6</span></div></div>
+      <div class="sw"><div class="chip" style="background:#4FB477"></div><div class="meta"><span class="name">On track</span><span class="hex">#4FB477</span></div></div>
+      <div class="sw"><div class="chip" style="background:#E0A050"></div><div class="meta"><span class="name">Attention</span><span class="hex">#E0A050</span></div></div>
+      <div class="sw"><div class="chip" style="background:#E0605E"></div><div class="meta"><span class="name">Critical</span><span class="hex">#E0605E</span></div></div>
+    </div>
+  </section>
+
+  <section class="rule-top">
+    <h2>Type</h2>
+    <div class="specimen">
+      <div class="spec-card">
+        <p class="legend">Instrument legend</p>
+        <p class="legend" style="font-size:11px;color:var(--dim);margin:0">REQUIRED PACE &middot; 7D</p>
+        <p class="caption">Mono, 10px, 0.16em tracking, uppercase. Names a reading without competing with it.</p>
+      </div>
+      <div class="spec-card">
+        <p class="legend">Reading</p>
+        <div class="mid">₹54,945<span style="color:var(--dim);font-size:12px">/day</span></div>
+        <p class="caption">Mono with tabular figures. Digits align in columns and never reflow as values change.</p>
+      </div>
+      <div class="spec-card">
+        <p class="legend">Prose</p>
+        <p style="margin:0;font-size:14px">Fix signup conversion before increasing SEO acquisition.</p>
+        <p class="caption">Sans, only where the system is talking to you in sentences.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="rule-top">
+    <h2>Screen 01 &mdash; Dashboard</h2>
+    <p>Answers one question above the fold: <em>am I on track, and what do I do next?</em> Sample data shown at
+      day 54 so the instruments are legible &mdash; the day-one empty state is shown further down.</p>
+
+    <div class="screen">
+      <div class="titlebar"><span class="dot live"></span><span class="dot"></span><span class="dot"></span><span class="path">localhost:8420 &mdash; dashboard</span></div>
+      <div class="app">
+        <nav class="rail">
+          <div class="brand"><div class="nm">JARVIS</div><div class="sub">v0.4 &middot; local</div></div>
+          <div class="navitem on">Dashboard</div>
+          <div class="navitem">Agent <span class="badge alert">2</span></div>
+          <div class="navitem">Tasks <span class="badge">18</span></div>
+          <div class="navitem">Schedule</div>
+          <div class="navitem">Projects</div>
+          <div class="navitem">Goals</div>
+          <div class="navitem">Revenue</div>
+          <div class="navitem">Memory</div>
+          <div class="navitem">Decisions <span class="badge alert">1</span></div>
+          <div class="navitem">Experiments</div>
+          <div class="navitem">Notifications</div>
+          <div class="navitem">Integrations</div>
+          <div class="navitem">Audit</div>
+          <div class="navitem">Settings</div>
+        </nav>
+
+        <div class="panel">
+          <div class="grid-2">
+            <div class="inst"><span class="stripe warn"></span>
+              <div class="bar"><span class="legend">Root goal &middot; ₹1 Cr by 10 Feb 2027</span><span class="pill warn">behind</span></div>
+              <div class="body">
+                <div class="big">₹14,20,000</div>
+                <p class="legend" style="margin-top:2px">banked &middot; 128 days remaining</p>
+                <div class="track">
+                  <div class="fill" style="width:14.2%"></div>
+                  <div class="need" style="left:29.7%"></div>
+                </div>
+                <div class="kv"><span class="k">Required pace</span><span class="v">₹67,031 / day</span></div>
+                <div class="kv"><span class="k">Actual pace (30d)</span><span class="v" style="color:var(--warn)">₹26,300 / day</span></div>
+                <div class="kv"><span class="k">Projected total</span><span class="v">₹47,86,400</span></div>
+                <div class="kv"><span class="k">Gap</span><span class="v" style="color:var(--crit)">−₹52,13,600</span></div>
+                <div class="kv"><span class="k">Confidence</span><span class="v">Medium &middot; 54d history</span></div>
+              </div>
+            </div>
+
+            <div class="inst"><span class="stripe idle"></span>
+              <div class="bar"><span class="legend">Net position &middot; 30d</span></div>
+              <div class="body">
+                <svg class="spark" viewBox="0 0 240 44" preserveAspectRatio="none" role="img" aria-label="Net position trend, rising">
+                  <line x1="0" y1="33" x2="240" y2="33" stroke="#1F2C38" stroke-width="1"/>
+                  <line x1="0" y1="18" x2="240" y2="18" stroke="#16212B" stroke-width="1"/>
+                  <path d="M0 38 L34 35 L68 36 L102 27 L136 29 L170 20 L204 16 L240 9 L240 44 L0 44 Z" fill="#1B8F9B" opacity="0.16"/>
+                  <path d="M0 38 L34 35 L68 36 L102 27 L136 29 L170 20 L204 16 L240 9" fill="none" stroke="#35C9D6" stroke-width="1.5"/>
+                  <circle cx="240" cy="9" r="2.6" fill="#35C9D6"/>
+                </svg>
+                <div class="kv"><span class="k">Gross</span><span class="v">₹3,84,000</span></div>
+                <div class="kv"><span class="k">Expenses</span><span class="v">₹41,200</span></div>
+                <div class="kv"><span class="k">Net</span><span class="v" style="color:var(--ok)">₹3,42,800</span></div>
+                <div class="kv"><span class="k">Burn / month</span><span class="v">₹18,400</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="inst assess">
+            <div class="bar"><span class="legend">Assessment &middot; 06:00</span><span class="pill accent">confidence high</span></div>
+            <div class="body">
+              <div class="chain">
+                <div class="step"><span class="lbl">Observation</span><span>Railzy traffic up 30% over 14 days.</span></div>
+                <div class="step"><span class="lbl">Evidence</span><span>Registrations flat at 41/week. Signup error rate 12%.</span></div>
+                <div class="step"><span class="lbl">Reasoning</span><span>Acquisition is improving; conversion is the binding constraint.</span></div>
+                <div class="step"><span class="lbl">Recommend</span><span style="color:var(--ink)">Fix signup conversion before spending another hour on SEO.</span></div>
+                <div class="step"><span class="lbl">Expected</span><span>Registrations rise on existing traffic. Est. +₹18k/mo.</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="inst"><span class="stripe ok"></span>
+              <div class="bar"><span class="legend">Today &middot; Wed 3 Oct</span><span class="pill idle">4 items · 2h buffer</span></div>
+              <div class="body">
+                <div class="row"><span class="band p1">P1</span>
+                  <span><span class="title">Fix Railzy signup bug</span><br><span class="why">Revenue · live users affected · 3 days open</span></span>
+                  <span class="meta">45m · 20:30</span></div>
+                <div class="row"><span class="band p2">P2</span>
+                  <span><span class="title">Naxova — filing documents</span><br><span class="why">Blocks contracting · critical path</span></span>
+                  <span class="meta">60m · Sun</span></div>
+                <div class="row"><span class="band p3">P3</span>
+                  <span><span class="title">Cut tonight's reel</span><br><span class="why">Footage ready · drafted 10:14</span></span>
+                  <span class="meta">15m · 23:10</span></div>
+                <div class="row"><span class="band p4">P4</span>
+                  <span><span class="title" style="color:var(--faint);text-decoration:line-through">Landing page spacing</span><br><span class="why">Deletion candidate · untouched 24d</span></span>
+                  <span class="meta" style="color:var(--faint)">drop</span></div>
+              </div>
+            </div>
+
+            <div class="inst"><span class="stripe crit"></span>
+              <div class="bar"><span class="legend">Stop doing</span><span class="pill crit">3</span></div>
+              <div class="body">
+                <div class="row"><span class="band p4">—</span>
+                  <span><span class="title">Logo redesign</span><br><span class="why">14h spent · zero revenue effect</span></span>
+                  <span class="meta">defer</span></div>
+                <div class="row"><span class="band p4">—</span>
+                  <span><span class="title">Analytics subscription</span><br><span class="why">₹2,400/mo · project earned ₹0 in 60d</span></span>
+                  <span class="meta">cancel</span></div>
+                <div class="row"><span class="band p4">—</span>
+                  <span><span class="title">Reel editing, 90m/night</span><br><span class="why">Largest time sink</span></span>
+                  <span class="meta">outsource</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Note the <strong>Stop doing</strong> instrument sits at equal weight to <strong>Today</strong>. That is a
+      product decision made visible: what you drop matters as much as what you pick up.</p>
+  </section>
+
+  <section class="rule-top">
+    <h2>Screen 02 &mdash; Agent office</h2>
+    <p>Your &ldquo;office with employees.&rdquo; Each worker role is a desk showing what it is doing, for how long, and
+      what it has cost. The metaphor earns its place because it makes delegation and pending approvals visible
+      instead of burying them in logs &mdash; observability wearing a friendlier face.</p>
+
+    <div class="screen">
+      <div class="titlebar"><span class="dot live"></span><span class="dot"></span><span class="dot"></span><span class="path">localhost:8420 &mdash; agent</span></div>
+      <div class="panel">
+        <div class="inst"><span class="stripe ok"></span>
+          <div class="bar"><span class="legend">Orchestrator</span><span class="pill ok"><span class="beat"></span>loop running</span></div>
+          <div class="body">
+            <div class="kv"><span class="k">Stage</span><span class="v">PRIORITIZE → EXECUTE</span></div>
+            <div class="kv"><span class="k">Pass started</span><span class="v">06:00:04 · 2.4s</span></div>
+            <div class="kv"><span class="k">Cost today</span><span class="v">₹18.40 · 214k tokens</span></div>
+          </div>
+        </div>
+
+        <div class="desks">
+          <div class="desk"><span class="stripe ok"></span>
+            <div class="role">Developer</div>
+            <div class="doing">Reading Railzy signup handler · 3 files</div>
+            <div class="foot"><span class="pill ok"><span class="beat"></span>working</span><span class="t">1m 12s</span></div>
+          </div>
+          <div class="desk"><span class="stripe warn"></span>
+            <div class="role">Content Manager</div>
+            <div class="doing">Drafted 3 captions — needs your approval to publish</div>
+            <div class="foot"><span class="pill warn">awaiting L2</span><span class="t">held 4m</span></div>
+          </div>
+          <div class="desk"><span class="stripe ok"></span>
+            <div class="role">Business Analyst</div>
+            <div class="doing">Recomputing trajectory from 4 new revenue records</div>
+            <div class="foot"><span class="pill ok"><span class="beat"></span>working</span><span class="t">22s</span></div>
+          </div>
+          <div class="desk"><span class="stripe idle"></span>
+            <div class="role">Researcher</div>
+            <div class="doing">—</div>
+            <div class="foot"><span class="pill idle">idle</span><span class="t">—</span></div>
+          </div>
+        </div>
+
+        <div class="inst"><span class="stripe warn"></span>
+          <div class="bar"><span class="legend">Approval queue</span><span class="pill warn">2 pending</span></div>
+          <div class="body">
+            <div class="row"><span class="band p2">L2</span>
+              <span><span class="title">Publish reel to 3 platforms</span><br><span class="why">Outward-facing · expires in 26m</span></span>
+              <span class="meta" style="color:var(--accent)">review</span></div>
+            <div class="row"><span class="band p2">L2</span>
+              <span><span class="title">Comment on Railzy issue #214</span><br><span class="why">Content originated from a fetched web page — untrusted</span></span>
+              <span class="meta" style="color:var(--accent)">review</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">The list is the default view. The literal floor plan with avatars is a toggle &mdash; the metaphor
+      never delays comprehension.</p>
+  </section>
+
+  <section class="rule-top">
+    <h2>Screen 03 &mdash; Mobile relay</h2>
+    <p>What you open on your phone. The relay holds an encrypted screenshot and a command queue; your local machine
+      collects and executes. Same command path as WhatsApp and Telegram.</p>
+
+    <div class="phones">
+      <div class="phone">
+        <div class="status"><span>09:42</span><span>relay · encrypted</span></div>
+        <div class="content">
+          <p class="legend">Latest capture &middot; 40s ago</p>
+          <div class="shot">
+            <div class="fauxwin" style="left:8%;top:12%;width:52%;height:56%"></div>
+            <div class="fauxwin" style="left:44%;top:34%;width:48%;height:52%;background:#0F1620"></div>
+            <div class="cap">desktop · 2560×1440 · e2e encrypted</div>
+          </div>
+          <div class="cmdbox"><span class="txt">what should I do now?</span><span class="go">SEND</span></div>
+          <div class="msg outbound"><span class="who">Jarvis</span>Fix the Railzy signup bug. 45 minutes, P1, unresolved 3 days. It's costing ~14 signups a week.</div>
+          <div class="msg inbound"><span class="who">You</span>start it</div>
+          <div class="msg outbound"><span class="who">Jarvis</span>Queued for the local machine. Developer picked it up.</div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="status"><span>06:00</span><span>whatsapp</span></div>
+        <div class="content">
+          <div class="msg outbound"><span class="who">Incoming call</span>Wake-up call · WhatsApp Business Calling API</div>
+          <div class="msg outbound"><span class="who">Jarvis · 06:02</span>Morning. Gym at 07:30, leave by 09:10. Railzy signup bug still open — I've put 90 minutes on it tonight at 20:30.</div>
+          <div class="msg inbound"><span class="who">You</span>move it to sunday</div>
+          <div class="msg outbound"><span class="who">Jarvis</span>That's the third time this one's moved. Either give it a protected block Sunday or I drop it from the plan — which?</div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="status"><span>day 1</span><span>empty state</span></div>
+        <div class="content">
+          <p class="legend">Root goal</p>
+          <div class="inst"><span class="stripe idle"></span>
+            <div class="bar"><span class="legend">₹1 Cr by 10 Feb 2027</span><span class="pill idle">no history</span></div>
+            <div class="body">
+              <div class="mid" style="color:var(--dim)">insufficient history</div>
+              <p class="caption" style="margin-top:6px">Needs 14 days of records before I'll project anything. Required pace so far: ₹54,945/day.</p>
+            </div>
+          </div>
+          <p class="caption">The honest day-one state. No zero, no flat line, no optimistic default &mdash; the system
+            says what it doesn't know.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rule-top">
+    <h2>Decisions behind the look</h2>
+    <div class="notes">
+      <div class="note">
+        <h3>Severity is a stripe, not a colour swap</h3>
+        <p>Every instrument carries a 2px stripe on its left edge. State reads at a glance from across the room, and
+          it survives being printed, screenshotted, or viewed by someone colour-blind.</p>
+      </div>
+      <div class="note">
+        <h3>Accent ≠ semantic</h3>
+        <p>Cyan means &ldquo;you can act on this.&rdquo; Amber and red mean &ldquo;something is wrong.&rdquo; They never
+          share a hue, so an alert never looks like a button.</p>
+      </div>
+      <div class="note">
+        <h3>Data is monospaced, prose is not</h3>
+        <p>Figures use tabular numerals so columns stay locked as values update. Sentences use a proportional face
+          because the system talking to you should not look like a log file.</p>
+      </div>
+      <div class="note">
+        <h3>Committed to dark</h3>
+        <p>An instrument panel is dark by nature, so this is single-theme by choice, with every colour painted
+          explicitly rather than inherited. No light variant is faked.</p>
+      </div>
+      <div class="note">
+        <h3>Empty states are designed first</h3>
+        <p>On day one you have no revenue history and no tasks. That screen was designed before the full one, because
+          it is the screen you will actually see first.</p>
+      </div>
+      <div class="note">
+        <h3>System typefaces, deliberately</h3>
+        <p>Web fonts are blocked in this environment and inlining a face would bloat the page. The stacks are chosen
+          and treated &mdash; tracking, weight, scale &mdash; rather than left at defaults.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
