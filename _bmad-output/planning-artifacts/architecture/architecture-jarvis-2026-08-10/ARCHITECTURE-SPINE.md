@@ -5,7 +5,7 @@ purpose: build-substrate
 altitude: initiative
 paradigm: 'Hexagonal (ports and adapters) around a deterministic core'
 scope: 'Whole system. Concrete stack and structure bound for M0 (service skeleton) and M1 (nudge loop); later milestones constrained but not detailed.'
-status: draft
+status: final
 created: '2026-08-10'
 updated: '2026-08-10'
 binds: ['FR-1..FR-104', 'NFR-1..NFR-20', 'CFR-1..CFR-57', 'CNFR-1..CNFR-12']
@@ -186,6 +186,36 @@ Dependencies point inward. `domain` imports nothing. `adapters` may never be imp
 - **Prevents:** both duplicated logic and the `utils.py` grab-bag that becomes an unmaintainable dependency magnet
 - **Rule:** Cross-cutting helpers live in `aos/common/` in modules named for their single subject — `money.py`, `timeutil.py`, `ids.py`, `redaction.py`, `result.py`. **A module named `utils`, `helpers`, `misc` or `shared` is forbidden.** `common/` may import from `domain/` but never from `app/`, `adapters/` or `entrypoints/`. Extract on the third occurrence, not the first — premature sharing couples more than it saves.
 
+### AD-22 — Every derived value has exactly one writer
+
+- **Binds:** priority scores, goal rollups, trajectory, required pace, calibration factors
+- **Prevents:** one component treating a value as computed-on-read while another treats it as stored, so the plan ranks by fresh numbers while the dashboard shows stale ones — with neither in breach
+- **Rule:** Each derived value declares a single owning component that computes and persists it, stamped with the version of the inputs it was computed from. Readers **read**; they never opportunistically recompute. A reader detecting a stale stamp requests recomputation from the owner rather than doing it locally.
+
+### AD-23 — Notifications are deduplicated by a deterministic key
+
+- **Binds:** notifier, scheduler, proactive-signal generation
+- **Prevents:** two compliant producers raising the same real-world event twice — the exact notification fatigue P-6 and NFR-8 exist to avoid
+- **Rule:** Every notification carries a dedupe key derived from (trigger identity, target occurrence). The notifier collapses duplicate keys within a configured window and records the suppression. The notification budget counts **occurrences**, not emissions.
+
+### AD-24 — Confidentiality fails closed
+
+- **Binds:** memory, model routing, all writers
+- **Prevents:** an unclassified record silently defaulting to a permissive class and leaking client work to a hosted model
+- **Rule:** Classification is **mandatory at write** and storage rejects null. Any record whose provenance cannot be established is assigned the **most restrictive** class, not the most convenient. There is no permissive default anywhere in the system. Model routing denies on absence, never permits on absence.
+
+### AD-25 — The relay envelope is versioned and opaque
+
+- **Binds:** relay, local agent, channel adapters
+- **Prevents:** version skew between two separately-deployed components silently dropping traffic
+- **Rule:** Every envelope carries an explicit schema version. The relay treats the payload as opaque and **forwards unknown versions untouched** rather than rejecting them. Outer-field changes are additive only, and no newly added field may become required for routing. The relay is never updated in lockstep with the agent, because it cannot be.
+
+### AD-26 — The system watches itself
+
+- **Binds:** service host, scheduler, notifier
+- **Prevents:** silent death — the realistic failure mode for an always-on local service, and the one that destroys the product's entire value
+- **Rule:** The service writes a heartbeat on every loop pass. A missed heartbeat beyond a configured threshold is surfaced on next start alongside missed triggers (NFR-20). Startup failure, scheduler stall, and channel-adapter disconnection each raise a visible, user-facing signal — never a log line alone.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -207,25 +237,25 @@ Dependencies point inward. `domain` imports nothing. `adapters` may never be imp
 
 ## Stack
 
-Verified current on the web at authoring, 2026-08-10.
+Seed, not contract — the code owns this once `pyproject.toml` exists. Rows marked **unpinned** were not version-verified at authoring and are pinned at first install from the resolved lockfile; everything else was checked against live sources on 2026-08-10.
 
 | Name | Version |
 |---|---|
 | Python | 3.12+ |
-| FastAPI | latest stable |
-| Uvicorn | latest stable |
+| FastAPI | unpinned |
+| Uvicorn | unpinned |
 | SQLAlchemy | 2.x |
-| Alembic | latest stable |
+| Alembic | unpinned |
 | SQLite | bundled with Python (MVP default backend) |
-| PostgreSQL | 16+ (second supported backend) |
+| PostgreSQL | 16+ (second supported backend) — asserted, confirm at the phase-2 lift |
 | APScheduler | **3.11.x** — 4.0 remains in development and redesigned its stores incompatibly |
 | python-telegram-bot | 22.8 (requires Python ≥3.10) |
 | pydantic-settings | latest stable |
 | keyring | latest stable — Windows DPAPI backed |
-| NSSM | 2.24+ — wraps the process as a Windows Service |
-| Ruff | latest stable — lint **and** format; replaces black, isort, flake8, pyupgrade |
-| mypy | latest stable — strict mode |
-| pytest | latest stable |
+| Windows Task Scheduler | built in — at-startup trigger, *run whether the user is logged on or not*. **Not NSSM**: verified as having had no stable release in over a decade. WinSW is the fallback if true service-control semantics are needed later. |
+| Ruff | unpinned — lint **and** format; replaces black, isort, flake8, pyupgrade |
+| mypy | unpinned — strict mode |
+| pytest | unpinned |
 | uv | optional accelerator — the bootstrap uses it when present and falls back to stdlib `venv` + `pip`, so Python alone is the only prerequisite |
 | VPS | India region (Mumbai / Bangalore) — sub-35ms domestic; **not** Hetzner at 180–220ms from India |
 
@@ -323,6 +353,47 @@ tests/
 ```
 
 **Host context.** This system runs on the user's **personal** machine. His Gate6 work happens on a **separate official machine**, so employer material is not present on this host and cannot appear in screenshots or model context. **Client-confidential material remains in scope** — freelance client work is done at home on this same machine — so the classification and routing rules of AD-10 and AD-15 stand, weighted toward client rather than employer.
+
+## Operational Envelope
+
+The system's value depends entirely on it running unattended for months and firing at 06:00 the morning after a reboot. That makes operations part of the architecture, not an afterthought.
+
+### Environments
+
+| Environment | Data | Channels | Runs as |
+|---|---|---|---|
+| **dev** | Throwaway database, seeded fixtures | Stubbed adapters — no real message is ever sent | Foreground process |
+| **live** | The real memory stores | Real Telegram, WhatsApp, relay | Startup task, no login required |
+
+One config value selects the environment. **A dev run can never deliver to a real channel** — the adapter set is chosen by environment, not by a flag a developer might forget. Dev and live never share a database file.
+
+### Startup and supervision
+
+- Registered with Windows Task Scheduler: **at startup**, *run whether the user is logged on or not*, restart-on-failure enabled — so an overnight reboot does not silently cost the 06:00 nudge.
+- Single-instance lock (AD-17) is acquired before the scheduler or any channel poller starts.
+- The welcome message on start doubles as the liveness signal the user actually sees.
+
+### Upgrade
+
+- `run.py` is the only upgrade path (AD-19): stop, pull, re-run. It detects the new version, applies pending migrations, and restarts.
+- **Migrations run forward-only and must be safe to apply to a live database with data.** A migration that cannot be applied without data loss is a defect, not a release note.
+- A failed upgrade leaves the previous version running rather than a half-migrated system.
+
+### Relay deployment
+
+- The relay is a separate deployable with no domain import; it ships and rolls back independently (AD-25 exists precisely because these two versions drift).
+- Rollback is redeploying the prior version — the relay holds no durable state worth preserving beyond in-flight envelopes.
+
+### Self-monitoring
+
+- Heartbeat per loop pass (AD-26). A gap beyond threshold is reported to the user on next start.
+- Channel-adapter disconnection, scheduler stall, and startup failure each raise a visible signal, never a log line alone.
+- Operational metrics (FR-92) are queryable locally: executions, latency, errors, token cost.
+
+### Backup and restore
+
+- **[PROPOSED]** Daily local copy of the database file plus the secrets store, retained 30 days.
+- **Restore is exercised, not assumed** — an untested backup is not a backup. A restore drill is part of the M2 exit criteria, since that is the milestone where the data first becomes irreplaceable.
 
 ## Capability → Architecture Map
 

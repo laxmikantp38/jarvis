@@ -1,6 +1,6 @@
 # Goal Model — proposed decomposition of the ₹1 crore target
 
-**Date:** 2026-08-10 · **Status:** proposal, needs your decision
+**Date:** 2026-08-10 · **Status:** ✅ **Split B adopted** as the seed configuration — see §6
 **Window:** 2026-08-10 → 2027-02-10 (182 days) · **Target:** ≈ ₹1,00,00,000 gross earnings, all streams
 
 This is the seed configuration for the Goal engine (PRD FR-6, FR-11). It is *data*, not a feature — see `../../architecture/core-intelligence-loop.md` §3.2.
@@ -128,10 +128,30 @@ These four numbers turn the whole document from a proposal into a live tracker.
 
 ---
 
-## 6. Decision needed
+## 6. Decision — Split B adopted
 
-1. **Split A or Split B?** (Or your own numbers — the engine holds whatever you choose.)
-2. If B: **does Naxova formation become the first protected block**, ahead of Railzy?
-3. Give me the four baselines in §5.
+**Split B is the seed configuration.** Split A is recorded in §3 but not loaded, because the engine would declare it `unreachable_under_current_assumptions` on day one and then repeat that verdict weekly for six months. A goal the system already knows is arithmetically dead is not a plan; it is a standing alarm.
 
-*Configuration, not code. Any of this can change without touching the system.*
+### Why B, stated plainly
+
+Split B is not more optimistic than A — it is **less** optimistic about ads and more honest about where the money can actually come from in 26 weeks. Services is the only line with a track record: you already sell exactly this to one paying client. Everything else in the plan is a hypothesis; that one is a repeat.
+
+### What follows automatically from adopting B
+
+1. **Naxova moves onto the critical path.** ₹55L of services in six months means subcontracting, and subcontracting means an entity that can contract and invoice. **Naxova formation takes the first protected block, ahead of Railzy** — answering the second open question. Railzy keeps its weekly block, but Naxova comes first because it gates the largest revenue line.
+2. **Railzy's job changes.** It stops being an ad-revenue bet and becomes a paid product — the ₹20L line assumes paying users, not pageviews. AdSense stays connected at ₹7L because it compounds and costs almost nothing, but it is no longer load-bearing.
+3. **Content's job changes too.** Brand deals at ₹15L, ads at ₹3L. The channel's purpose becomes audience for sponsorship, not views for AdSense — which is a different content strategy and should change what you shoot.
+
+### This is a starting hypothesis, not a forecast
+
+Under **FR-100**, these targets are a seed, not a commitment. Log real earnings for four weeks and the engine proposes a split derived from where money actually arrived, with the evidence attached. If services closes faster than expected, or Railzy converts better than modelled, the tree re-weights against reality.
+
+**Review trigger: 2026-09-07** (4 weeks). At that point the split is re-derived from actuals, and this document's numbers become the *prior*, not the truth.
+
+### Still open — the only genuinely blocking item
+
+The four baselines in §5 remain unanswered. Without them the engine can report *required* pace but not *actual* pace, so trajectory and gap stay in the `insufficient_history` state (FR-8, CFR-8) until you have logged roughly two weeks of real records.
+
+That is by design — the system will say what it does not know rather than invent a starting point. But it means the cockpit is honest-but-empty until you start logging.
+
+*Configuration, not code. Every number here changes without touching the system.*
