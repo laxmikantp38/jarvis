@@ -18,13 +18,13 @@
 
 | Release | Epics | Stories | Done | Status |
 |---|---|---|---|---|
-| **R1 — Survive and measure** | 1–3 | 21 | 0 | **Build now** |
+| **R1 — Survive and measure** | 1–3 | 21 | **2** | **Build now** |
 | ⏸ Stop and earn | — | — | — | ~4 months, no build |
 | R2 — Leverage | 4–6 | 25 | 0 | Month 7+ |
 | R3 — Judgement and reach | 7–9 | 20 | 0 | Later |
 | R4 — The office floor | 10 | 7 | 0 | Later |
 
-**Next action:** Story 1.1 — Start on boot and say hello.
+**Next action:** Story 1.3 — Schedule my routine.
 
 ---
 
@@ -40,8 +40,8 @@ Nudges fire on the real routine from a service that starts itself on boot and su
 
 | | Story | Status | Notes |
 |---|---|---|---|
-| 1.1 | Start on boot and say hello | ⬜ | `run.py` bootstrap, Task Scheduler, single-instance lock, welcome |
-| 1.2 | Keep configuration and secrets out of the code | ⬜ | `AGENT_NAME`, keyring, CI naming gate, provider port |
+| 1.1 | Start on boot and say hello | ✅ | `run.py` bootstrap, Task Scheduler, single-instance lock, welcome |
+| 1.2 | Keep configuration and secrets out of the code | ✅ | `AGENT_NAME`, keyring, CI naming gate, provider port |
 | 1.3 | Schedule my routine | ⬜ | Persistent triggers, 06:00 / 07:30 / 09:10 / 20:00, UTC + DST safe |
 | 1.4 | Reach me on Telegram | ⬜ | Long polling, duplex adapter, dev stub adapter |
 | 1.5 | Don't spam me | ⬜ | Classes, dedupe keys, quiet hours, daily budget |
