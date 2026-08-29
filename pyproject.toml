@@ -1,0 +1,88 @@
+[project]
+name = "aos"
+version = "0.1.0"
+description = "A personal AI operating system: proactive nudges, on-demand execution, and a decision partner."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "keyring>=25.0",
+    # Windows ships no IANA timezone database; without this every ZoneInfo lookup
+    # fails and no schedule resolves.
+    "tzdata>=2024.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------------------
+# AD-20: limits are enforced, not aspirational.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py312"
+# Vendored tooling we neither own nor ship.
+extend-exclude = [".claude", ".agents", "_bmad", "_bmad-output", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import order
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "C4",        # comprehensions
+    "SIM",       # simplify
+    "PL",        # pylint
+    "RUF",
+    "ANN",       # type annotations required
+    "S",         # security
+    "T20",       # no stray print in library code
+]
+ignore = [
+    "ANN401",    # Any is occasionally the honest type
+    "PLR0911",   # early returns beat nesting; AD-20 caps nesting instead
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "ANN", "PLR2004", "PLC0415", "T20"]
+"src/aos/entrypoints/*" = ["T20"]   # entrypoints talk to a terminal
+"run.py" = ["T20", "PLC0415"]       # the bootstrap talks to a terminal and
+                                    # imports lazily, after installing deps
+
+[tool.ruff.lint.pylint]
+max-args = 5           # AD-20
+max-statements = 50    # AD-20: function <= 50 lines
+max-branches = 10      # AD-20: complexity <= 10
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+mypy_path = "src"
+packages = ["aos"]
+
+[[tool.mypy.overrides]]
+module = "keyring.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

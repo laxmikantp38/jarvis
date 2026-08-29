@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format
+        run: ruff format --check .
+
+      - name: Types
+        run: mypy
+
+      - name: Tests
+        run: pytest
+
+      # AD-9: renaming the assistant must be a single configuration change.
+      # The name may appear in config and docs, never in source.
+      - name: Naming rule
+        run: |
+          name=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('config.example.toml').read_text())['agent_name'])")
+          if grep -ril --include='*.py' "$name" src tests run.py 2>/dev/null | grep .; then
+            echo "::error::'$name' appears in source. It belongs in configuration only (AD-9)."
+            exit 1
+          fi
+          echo "clean: '$name' appears in no source file"

@@ -1,0 +1,37 @@
+# Copy to config.toml (run.py does this for you on first run).
+# config.toml is git-ignored: it is machine state, not source.
+#
+# Every value here can be overridden by an environment variable using the
+# AOS_ prefix and __ for nesting, e.g. AOS_AGENT_NAME or AOS_TELEGRAM__ENABLED.
+#
+# Secrets never live here. They go to the OS credential store — see
+# `python run.py --set-secret <name>`.
+
+# The assistant's display name. This is the ONLY place the name is defined;
+# nothing in source hardcodes it (AD-9). Change it here and restart.
+agent_name = "Jarvis"
+
+# "dev" or "live".
+#   dev  - throwaway database, stub channels, foreground. Cannot message anyone.
+#   live - real database, real channels, started by Windows Task Scheduler.
+# A dev run can never deliver to a real channel: the adapter set is chosen by
+# environment, not by a flag that could be forgotten.
+environment = "dev"
+
+# IANA timezone. Timestamps are stored in UTC and evaluated here (AD-16).
+timezone = "Asia/Kolkata"
+
+[logging]
+level = "INFO"
+# Structured JSON to file; human-readable to the console.
+json_file = true
+
+[server]
+# The local UI binds to loopback only and is never reachable off this machine (AD-5).
+host = "127.0.0.1"
+port = 8420
+
+[telegram]
+enabled = false
+# The token is a secret. Store it with:
+#   python run.py --set-secret telegram_token
