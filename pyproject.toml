@@ -10,6 +10,8 @@ dependencies = [
     # Windows ships no IANA timezone database; without this every ZoneInfo lookup
     # fails and no schedule resolves.
     "tzdata>=2024.1",
+    "SQLAlchemy>=2.0",
+    "alembic>=1.13",
 ]
 
 [project.optional-dependencies]
@@ -59,7 +61,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S105", "ANN", "PLR2004", "PLC0415", "T20"]
-"src/aos/entrypoints/*" = ["T20"]   # entrypoints talk to a terminal
+"src/aos/entrypoints/*" = ["T20"]           # entrypoints talk to a terminal
+"src/aos/adapters/notification/*" = ["T20"] # a console notifier prints; that is the job
 "run.py" = ["T20", "PLC0415"]       # the bootstrap talks to a terminal and
                                     # imports lazily, after installing deps
 

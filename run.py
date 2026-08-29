@@ -117,9 +117,50 @@ def ensure_directories(environment: str) -> bool:
     return made
 
 
+def ensure_migrations(environment: str) -> bool:
+    """Bring the schema up to date. Forward-only, and safe on a live database.
+
+    A failed migration leaves the previous version in place rather than a
+    half-migrated system.
+    """
+    before = _schema_revision(environment)
+    result = subprocess.run(  # noqa: S603
+        [str(venv_python()), "-m", "alembic", "upgrade", "head"],
+        cwd=ROOT,
+        env=dict(os.environ, AOS_ENVIRONMENT=environment),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "no detail reported"
+        fail("Schema migration failed; nothing was changed." + chr(10) + "  " + detail)
+    return _schema_revision(environment) != before
+
+
+def _schema_revision(environment: str) -> str | None:
+    import sqlite3
+
+    database = ROOT / "data" / environment / "aos.db"
+    if not database.exists():
+        return None
+    try:
+        with sqlite3.connect(database) as connection:
+            row = connection.execute("select version_num from alembic_version").fetchone()
+    except sqlite3.Error:
+        return None
+    return str(row[0]) if row else None
+
+
 def setup(environment: str) -> None:
     check_python()
-    steps = [ensure_venv(), ensure_dependencies(), ensure_config(), ensure_directories(environment)]
+    steps = [
+        ensure_venv(),
+        ensure_dependencies(),
+        ensure_config(),
+        ensure_directories(environment),
+        ensure_migrations(environment),
+    ]
     if any(steps):
         say("setup complete")
 
@@ -131,6 +172,7 @@ def report(environment: str) -> int:
         ("dependencies installed", dependencies_current()),
         ("config.toml present", CONFIG.exists()),
         ("data directory", (ROOT / "data" / environment).exists()),
+        ("schema migrated", _schema_revision(environment) is not None),
     ]
     print()
     for label, ok in checks:

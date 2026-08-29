@@ -1,8 +1,8 @@
-"""Service lifecycle: wiring only, no domain logic.
+"""Service lifecycle: wiring and loop, no domain logic.
 
-Starts, announces itself, reports anything it missed while it was down, then
-holds until stopped. A failure here is surfaced to the user rather than left
-in a log nobody opens (FR-97).
+Starts, announces itself, reports anything it missed, then ticks the scheduler
+until stopped. A failure here is surfaced to the user rather than left in a log
+nobody opens (FR-97).
 """
 
 from __future__ import annotations
@@ -13,17 +13,17 @@ import threading
 from dataclasses import dataclass
 from datetime import timedelta
 
-from aos.adapters.system.file_heartbeat import FileHeartbeat
 from aos.adapters.system.file_instance_lock import FileInstanceLock
 from aos.adapters.system.settings import Settings
-from aos.adapters.system.system_clock import SystemClock
+from aos.app.scheduling.routine import default_routine
 from aos.common import paths
 from aos.common.logging_setup import configure
 from aos.common.timeutil import utc_now
+from aos.entrypoints.service.wiring import Runtime, build
 
 log = logging.getLogger(__name__)
 
-HEARTBEAT_INTERVAL = timedelta(seconds=30)
+TICK = timedelta(seconds=20)
 DOWNTIME_WORTH_REPORTING = timedelta(minutes=5)
 
 
@@ -33,17 +33,7 @@ class Downtime:
     duration: timedelta
 
 
-def _downtime(heartbeat: FileHeartbeat) -> Downtime | None:
-    previous = heartbeat.last_beat()
-    if previous is None:
-        return None
-    gap = utc_now() - previous
-    if gap < DOWNTIME_WORTH_REPORTING:
-        return None
-    return Downtime(since=previous.isoformat(), duration=gap)
-
-
-def _describe(gap: timedelta) -> str:
+def describe(gap: timedelta) -> str:
     hours, seconds = divmod(int(gap.total_seconds()), 3600)
     minutes = seconds // 60
     return f"{hours}h {minutes}m" if hours else f"{minutes}m"
@@ -52,9 +42,7 @@ def _describe(gap: timedelta) -> str:
 class ServiceHost:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._clock = SystemClock(settings.zone)
-        self._heartbeat = FileHeartbeat(paths.state_dir(settings.environment) / "heartbeat")
-        self._lock = FileInstanceLock(paths.lock_file(settings.environment))
+        self._runtime: Runtime | None = None
         self._stop = threading.Event()
 
     def run(self) -> int:
@@ -64,39 +52,86 @@ class ServiceHost:
             json_file=self._settings.logging.json_file,
         )
         # AD-17: nothing that fires or polls starts before the lock is held.
-        with self._lock:
+        with FileInstanceLock(paths.lock_file(self._settings.environment)):
+            self._runtime = build(self._settings)
             self._install_signal_handlers()
             self._announce()
             self._report_downtime()
+            self._prepare_schedule()
             self._serve()
         log.info("stopped cleanly")
         return 0
 
+    # --- startup ---------------------------------------------------------
+
     def _announce(self) -> None:
+        runtime = self._require_runtime()
         name = self._settings.agent_name
-        local = self._clock.now_local().strftime("%a %d %b, %H:%M")
-        print(f"\n  {name} is online.  {local}  ({self._settings.environment})", flush=True)
+        local = runtime.clock.now_local().strftime("%a %d %b, %H:%M")
+        banner = f"\n  {name} is online.  {local}  ({self._settings.environment})"
         if not self._settings.is_live:
-            print("  dev environment - channels are stubbed, nothing will be sent.\n", flush=True)
-        else:
-            print("", flush=True)
+            banner += "\n  dev environment - channels are stubbed, nothing will be sent."
+        # Flushed: this is the signal the user looks for, and a hard kill must
+        # not swallow it in a buffer.
+        print(banner + "\n", flush=True)
         log.info("%s online in %s", name, self._settings.environment)
 
     def _report_downtime(self) -> None:
         """AD-26 / NFR-20: say what was missed instead of pretending nothing was."""
-        gap = _downtime(self._heartbeat)
-        if gap is None:
+        runtime = self._require_runtime()
+        previous = runtime.heartbeat.last_beat()
+        if previous is None:
             return
-        window = _describe(gap.duration)
-        print(f"  I was not running for {window} (since {gap.since}).", flush=True)
-        print("  Scheduled nudges only fire while this machine is on.\n", flush=True)
-        log.warning("downtime detected: %s since %s", window, gap.since)
+        gap = utc_now() - previous
+        if gap < DOWNTIME_WORTH_REPORTING:
+            return
+        window = describe(gap)
+        print(
+            f"  I was not running for {window} (since {previous.isoformat()})."
+            "\n  Scheduled nudges only fire while this machine is on.\n",
+            flush=True,
+        )
+        log.warning("downtime detected: %s", window)
+
+    def _prepare_schedule(self) -> None:
+        runtime = self._require_runtime()
+        seeded = runtime.triggers.add_missing(default_routine())
+        if seeded:
+            print(f"  Set up your routine: {', '.join(seeded)}.\n", flush=True)
+            log.info("seeded triggers: %s", seeded)
+
+        now = utc_now()
+        runtime.scheduler.prepare(now)
+        for missed in runtime.scheduler.catch_up(now):
+            log.info(
+                "missed %s due %s (%s)",
+                missed.key,
+                missed.due_at.isoformat(),
+                "re-raised" if missed.reraised else "discarded",
+            )
+        self._print_next_due()
+
+    def _print_next_due(self) -> None:
+        runtime = self._require_runtime()
+        upcoming = sorted(
+            (t for t in runtime.triggers.all() if t.enabled and t.next_due_at),
+            key=lambda t: t.next_due_at,  # type: ignore[arg-type,return-value]
+        )
+        if not upcoming:
+            return
+        nxt = upcoming[0]
+        when = nxt.next_due_at.astimezone(runtime.zone)  # type: ignore[union-attr]
+        print(f"  Next up: {nxt.title} at {when.strftime('%H:%M on %a')}.\n", flush=True)
+
+    # --- loop ------------------------------------------------------------
 
     def _serve(self) -> None:
-        self._heartbeat.beat()
-        log.info("heartbeat started; ctrl-c to stop")
-        while not self._stop.wait(HEARTBEAT_INTERVAL.total_seconds()):
-            self._heartbeat.beat()
+        runtime = self._require_runtime()
+        runtime.heartbeat.beat()
+        log.info("scheduler running; ctrl-c to stop")
+        while not self._stop.wait(TICK.total_seconds()):
+            runtime.scheduler.tick(utc_now())
+            runtime.heartbeat.beat()
 
     def _install_signal_handlers(self) -> None:
         def handle(signum: int, _frame: object) -> None:
@@ -105,3 +140,9 @@ class ServiceHost:
 
         for sig in (signal.SIGINT, signal.SIGTERM):
             signal.signal(sig, handle)
+
+    def _require_runtime(self) -> Runtime:
+        if self._runtime is None:  # pragma: no cover - programmer error
+            msg = "runtime not built"
+            raise RuntimeError(msg)
+        return self._runtime
