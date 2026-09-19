@@ -18,13 +18,13 @@
 
 | Release | Epics | Stories | Done | Status |
 |---|---|---|---|---|
-| **R1 — Survive and measure** | 1–3 | 21 | **7** | **Build now** |
+| **R1 — Survive and measure** | 1–3 | 21 | **11** | **Build now** |
 | ⏸ Stop and earn | — | — | — | ~4 months, no build |
 | R2 — Leverage | 4–6 | 25 | 0 | Month 7+ |
 | R3 — Judgement and reach | 7–9 | 20 | 0 | Later |
 | R4 — The office floor | 10 | 7 | 0 | Later |
 
-**Next action:** Story 2.1 — Remember who I am and how my week runs.
+**Next action:** Story 2.4 (grounded answers), then 2.6 restore drill and 2.7 web UI — then Epic 3, the money.
 
 **Epic 1 is complete.** The system wakes him, nudges on his real routine, says what it missed, spends attention deliberately, and warns about footage while there is still a day to act in.
 
@@ -58,12 +58,12 @@ Messages on Telegram become understood and remembered — routine, projects, tas
 
 | | Story | Status | Notes |
 |---|---|---|---|
-| 2.1 | Remember who I am and how my week runs | ⬜ | User partition, structured routine, classification mandatory |
-| 2.2 | Capture a task from a message | ⬜ | Task model, one project per task, append-only events |
-| 2.3 | Organise my work into projects | ⬜ | Railzy, Content, Freelance, Naxova, Personal — Naxova not formed |
+| 2.1 | Remember who I am and how my week runs | ✅ | User partition, structured routine, classification mandatory |
+| 2.2 | Capture a task from a message | ✅ | Task model, one project per task, append-only events |
+| 2.3 | Organise my work into projects | ✅ | + **Ghumr** seeded, objective blank pending your description |
 | 2.4 | Ask it what I've got on | ⬜ | Grounded answers with provenance; degrades without an LLM |
-| 2.5 | Keep client work off hosted models | ⬜ | Routing-layer enforcement, most-restrictive default |
-| 2.6 | Survive a restart, and prove I can restore | ⬜ | **Restore drill is the exit criterion** |
+| 2.5 | Keep client work off hosted models | ✅ | Routing-layer enforcement, most-restrictive default |
+| 2.6 | Survive a restart, and prove I can restore | 🔵 | **Restore drill is the exit criterion** |
 | 2.7 | See it in a browser | ⬜ | Loopback only, honest empty states, 14 sections |
 
 ## Epic 3: It follows the money
