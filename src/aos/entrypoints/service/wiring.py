@@ -74,7 +74,12 @@ def build(settings: Settings) -> Runtime:
     engine = create_sqlite_engine(paths.database_file(environment))
     triggers = SqliteTriggerRepository(session_factory(engine))
     channels = _channels_for(settings)
-    notifier = ChannelNotifier(channels)
+    notifier = ChannelNotifier(
+        channels=channels,
+        policy=settings.notifications.as_policy(),
+        zone=zone,
+        now=utc_now,
+    )
 
     return Runtime(
         settings=settings,

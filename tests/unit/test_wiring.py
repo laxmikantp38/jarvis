@@ -38,9 +38,7 @@ def test_live_without_a_stored_token_stays_on_the_console(
 ) -> None:
     from aos.adapters.system import keyring_secrets
 
-    monkeypatch.setattr(
-        keyring_secrets.KeyringSecretStore, "get", lambda self, name: None
-    )
+    monkeypatch.setattr(keyring_secrets.KeyringSecretStore, "get", lambda self, name: None)
     channels = _channels_for(settings_for("live", enabled=True, chat_id="12345"))
 
     assert [c.name for c in channels] == ["console"]
@@ -51,9 +49,7 @@ def test_live_with_a_token_puts_telegram_first_and_keeps_a_fallback(
 ) -> None:
     from aos.adapters.system import keyring_secrets
 
-    monkeypatch.setattr(
-        keyring_secrets.KeyringSecretStore, "get", lambda self, name: "a-token"
-    )
+    monkeypatch.setattr(keyring_secrets.KeyringSecretStore, "get", lambda self, name: "a-token")
     channels = _channels_for(settings_for("live", enabled=True, chat_id="12345"))
 
     assert [c.name for c in channels] == ["telegram", "console"]

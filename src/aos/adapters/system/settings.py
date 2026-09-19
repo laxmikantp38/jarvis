@@ -18,6 +18,7 @@ from pydantic_settings import (
 )
 
 from aos.common import paths
+from aos.domain.notification.policy import NotificationPolicy, TimeWindow
 
 Environment = Literal["dev", "live"]
 
@@ -25,6 +26,33 @@ Environment = Literal["dev", "live"]
 class LoggingSettings(BaseModel):
     level: str = "INFO"
     json_file: bool = True
+
+
+class NotificationSettings(BaseModel):
+    daily_budget: int = Field(default=12, ge=1)
+    quiet_hours: str = ""
+    blackouts: list[str] = Field(default_factory=list)
+
+    def as_policy(self) -> NotificationPolicy:
+        return NotificationPolicy(
+            daily_budget=self.daily_budget,
+            quiet_hours=TimeWindow.parse(self.quiet_hours) if self.quiet_hours else None,
+            blackouts=tuple(TimeWindow.parse(w) for w in self.blackouts),
+        )
+
+    @field_validator("quiet_hours")
+    @classmethod
+    def parseable_window(cls, value: str) -> str:
+        if value:
+            TimeWindow.parse(value)  # fail at startup, not at 06:00
+        return value
+
+    @field_validator("blackouts")
+    @classmethod
+    def parseable_windows(cls, value: list[str]) -> list[str]:
+        for window in value:
+            TimeWindow.parse(window)
+        return value
 
 
 class ServerSettings(BaseModel):
@@ -66,6 +94,7 @@ class Settings(BaseSettings):
     timezone: str = "UTC"
 
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    notifications: NotificationSettings = Field(default_factory=NotificationSettings)
     server: ServerSettings = Field(default_factory=ServerSettings)
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
 

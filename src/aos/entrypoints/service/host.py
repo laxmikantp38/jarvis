@@ -176,6 +176,7 @@ class ServiceHost:
         log.info("scheduler running; ctrl-c to stop")
         while not self._stop.wait(TICK.total_seconds()):
             runtime.scheduler.tick(utc_now())
+            runtime.notifier.release_due()
             runtime.heartbeat.beat()
 
     def _install_signal_handlers(self) -> None:
