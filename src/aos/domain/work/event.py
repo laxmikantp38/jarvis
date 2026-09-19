@@ -22,6 +22,9 @@ class EventType(StrEnum):
     PROJECT_CREATED = "project.created"
     TRIGGER_FIRED = "trigger.fired"
     FOOTAGE_ADJUSTED = "footage.adjusted"
+    REVENUE_RECORDED = "revenue.recorded"
+    EXPENSE_RECORDED = "expense.recorded"
+    GOAL_PROGRESSED = "goal.progressed"
     SYSTEM_STARTED = "system.started"
 
 

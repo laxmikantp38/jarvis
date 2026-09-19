@@ -2,9 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import date, datetime, time
+from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Time
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Time,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -95,3 +108,49 @@ class UserFactRow(Base):
     value: Mapped[str] = mapped_column(String(4000))
     confidentiality: Mapped[str] = mapped_column(String(24))
     updated_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class RevenueRow(Base):
+    __tablename__ = "revenue_record"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    paise: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="INR")
+    stream: Mapped[str] = mapped_column(String(24))
+    certainty: Mapped[str] = mapped_column(String(16))
+    probability: Mapped[float] = mapped_column(Float, default=1.0)
+    occurred_on: Mapped[date] = mapped_column(Date)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime)
+    note: Mapped[str] = mapped_column(String(500), default="")
+
+
+class ExpenseRow(Base):
+    __tablename__ = "expense_record"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    paise: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="INR")
+    category: Mapped[str] = mapped_column(String(24))
+    project_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    recurrence: Mapped[str] = mapped_column(String(16))
+    occurred_on: Mapped[date] = mapped_column(Date)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime)
+    note: Mapped[str] = mapped_column(String(500), default="")
+
+
+class GoalRow(Base):
+    __tablename__ = "goal"
+
+    key: Mapped[str] = mapped_column(String(48), primary_key=True)
+    parent_key: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    name: Mapped[str] = mapped_column(String(160))
+    goal_type: Mapped[str] = mapped_column(String(20))
+    # Null is unallocated, reported as such and never as zero.
+    target: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    current: Mapped[Decimal] = mapped_column(Numeric, default=0)
+    unit: Mapped[str] = mapped_column(String(32), default="")
+    start_on: Mapped[date] = mapped_column(Date)
+    deadline: Mapped[date] = mapped_column(Date)
+    rollup: Mapped[str] = mapped_column(String(16))
+    weight: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(16))
