@@ -22,6 +22,8 @@ from aos.common import paths
 from aos.common.logging_setup import configure
 from aos.common.timeutil import utc_now
 from aos.domain.scheduling.trigger import NotificationClass
+from aos.entrypoints.api.app import create_app
+from aos.entrypoints.api.server import LocalInterface
 from aos.entrypoints.service.wiring import Runtime, build
 from aos.ports.channel import InboundMessage, OutboundMessage
 
@@ -47,6 +49,7 @@ class ServiceHost:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._runtime: Runtime | None = None
+        self._interface: LocalInterface | None = None
         self._stop = threading.Event()
 
     def run(self) -> int:
@@ -63,9 +66,11 @@ class ServiceHost:
             self._report_downtime()
             self._prepare_schedule()
             self._start_channels()
+            self._start_interface()
             try:
                 self._serve()
             finally:
+                self._stop_interface()
                 self._stop_channels()
         log.info("stopped cleanly")
         return 0
@@ -166,6 +171,25 @@ class ServiceHost:
             names = ", ".join(reachable)
             print(f"  Listening on {names}." + chr(10), flush=True)
             log.info("channels listening: %s", reachable)
+
+    def _start_interface(self) -> None:
+        runtime = self._require_runtime()
+        server = runtime.settings.server
+        self._interface = LocalInterface(create_app(runtime), host=server.host, port=server.port)
+        if self._interface.start():
+            print(f"  Interface:  {self._interface.url}" + chr(10), flush=True)
+        else:
+            # Said out loud rather than logged: a dead interface with a live
+            # service looks like the whole thing is broken.
+            print(
+                f"  Interface could not start on port {server.port} - something else"
+                f" is using it. Everything else is running." + chr(10),
+                flush=True,
+            )
+
+    def _stop_interface(self) -> None:
+        if self._interface is not None:
+            self._interface.stop()
 
     def _stop_channels(self) -> None:
         runtime = self._require_runtime()
