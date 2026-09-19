@@ -33,5 +33,8 @@ port = 8420
 
 [telegram]
 enabled = false
-# The token is a secret. Store it with:
+# Your own chat id, so the bot knows where to send. Message your bot once,
+# then read it from https://api.telegram.org/bot<TOKEN>/getUpdates
+chat_id = ""
+# The token is a secret and never belongs in this file. Store it with:
 #   python run.py --set-secret telegram_token

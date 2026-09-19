@@ -19,7 +19,9 @@ from aos.app.scheduling.routine import default_routine
 from aos.common import paths
 from aos.common.logging_setup import configure
 from aos.common.timeutil import utc_now
+from aos.domain.scheduling.trigger import NotificationClass
 from aos.entrypoints.service.wiring import Runtime, build
+from aos.ports.channel import InboundMessage, OutboundMessage
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +60,11 @@ class ServiceHost:
             self._announce()
             self._report_downtime()
             self._prepare_schedule()
-            self._serve()
+            self._start_channels()
+            try:
+                self._serve()
+            finally:
+                self._stop_channels()
         log.info("stopped cleanly")
         return 0
 
@@ -122,6 +128,45 @@ class ServiceHost:
         nxt = upcoming[0]
         when = nxt.next_due_at.astimezone(runtime.zone)  # type: ignore[union-attr]
         print(f"  Next up: {nxt.title} at {when.strftime('%H:%M on %a')}.\n", flush=True)
+
+    def _start_channels(self) -> None:
+        runtime = self._require_runtime()
+        for channel in runtime.channels:
+            channel.start(self._on_inbound)
+        reachable = [c.name for c in runtime.channels if c.reaches_a_real_person]
+        if reachable:
+            names = ", ".join(reachable)
+            print(f"  Listening on {names}." + chr(10), flush=True)
+            log.info("channels listening: %s", reachable)
+
+    def _stop_channels(self) -> None:
+        runtime = self._require_runtime()
+        for channel in runtime.channels:
+            channel.stop()
+
+    def _on_inbound(self, message: InboundMessage) -> None:
+        """Every channel converges here; none gets a private route in (AD-6)."""
+        runtime = self._require_runtime()
+        origin = next((c for c in runtime.channels if c.name == message.channel), None)
+
+        def reply(text: str) -> None:
+            if origin is None:
+                log.warning("no channel named %s to reply on", message.channel)
+                return
+            origin.send(
+                OutboundMessage(
+                    dedupe_key=f"reply:{message.channel}:{message.external_id}",
+                    title="",
+                    body=text,
+                    notification_class=NotificationClass.NORMAL,
+                )
+            )
+
+        try:
+            runtime.intake.handle(message, reply)
+        except Exception:
+            log.exception("intake failed for %s", message.external_id)
+            reply("Something went wrong handling that. It is in the log.")
 
     # --- loop ------------------------------------------------------------
 

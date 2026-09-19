@@ -12,6 +12,7 @@ dependencies = [
     "tzdata>=2024.1",
     "SQLAlchemy>=2.0",
     "alembic>=1.13",
+    "python-telegram-bot>=22.8",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +64,7 @@ ignore = [
 "tests/*" = ["S101", "S105", "ANN", "PLR2004", "PLC0415", "T20"]
 "src/aos/entrypoints/*" = ["T20"]           # entrypoints talk to a terminal
 "src/aos/adapters/notification/*" = ["T20"] # a console notifier prints; that is the job
+"src/aos/adapters/channel/stub.py" = ["T20"]  # the dev channel prints instead of sending
 "run.py" = ["T20", "PLC0415"]       # the bootstrap talks to a terminal and
                                     # imports lazily, after installing deps
 

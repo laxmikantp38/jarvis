@@ -43,6 +43,12 @@ class ServerSettings(BaseModel):
 
 class TelegramSettings(BaseModel):
     enabled: bool = False
+    chat_id: str = ""
+
+    @property
+    def usable(self) -> bool:
+        """Enabled is an intent; usable is whether it can actually deliver."""
+        return self.enabled and bool(self.chat_id)
 
 
 class Settings(BaseSettings):
