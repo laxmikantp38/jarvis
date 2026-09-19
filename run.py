@@ -105,6 +105,14 @@ def ensure_config() -> bool:
         fail("config.example.toml is missing; cannot scaffold configuration.")
     shutil.copyfile(CONFIG_EXAMPLE, CONFIG)
     say(f"created {CONFIG.name} from the example - review it when you get a moment")
+    # Said once, at setup, because it is the one limitation that will otherwise
+    # look like a bug at 06:00 one morning (NFR-20).
+    print()
+    say("One thing to know: scheduled nudges only fire while this machine is")
+    say("running. If it is off overnight, I will tell you what you missed when")
+    say("it comes back. To have them fire after a reboot without you logging")
+    say("in, run: python run.py --register-startup")
+    print()
     return True
 
 

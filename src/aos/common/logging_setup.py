@@ -34,9 +34,17 @@ def _mask(text: str) -> str:
 
 class _RedactionFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = _mask(str(record.msg))
-        if record.args:
-            record.args = tuple(_mask(str(a)) for a in record.args)
+        if isinstance(record.msg, str):
+            record.msg = _mask(record.msg)
+        # Only strings are masked. Coercing every argument would break any
+        # numeric format such as %d, which is a silent way to lose a log line.
+        if isinstance(record.args, dict):
+            record.args = {
+                key: _mask(value) if isinstance(value, str) else value
+                for key, value in record.args.items()
+            }
+        elif record.args:
+            record.args = tuple(_mask(arg) if isinstance(arg, str) else arg for arg in record.args)
         return True
 
 

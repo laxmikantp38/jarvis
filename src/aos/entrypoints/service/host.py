@@ -16,6 +16,7 @@ from datetime import timedelta
 from aos.adapters.system.file_instance_lock import FileInstanceLock
 from aos.adapters.system.settings import Settings
 from aos.app.scheduling.routine import default_routine
+from aos.app.scheduling.scheduler import MissedOccurrence
 from aos.common import paths
 from aos.common.logging_setup import configure
 from aos.common.timeutil import utc_now
@@ -108,14 +109,35 @@ class ServiceHost:
 
         now = utc_now()
         runtime.scheduler.prepare(now)
-        for missed in runtime.scheduler.catch_up(now):
-            log.info(
-                "missed %s due %s (%s)",
-                missed.key,
-                missed.due_at.isoformat(),
-                "re-raised" if missed.reraised else "discarded",
-            )
+        self._report_missed(runtime.scheduler.catch_up(now))
         self._print_next_due()
+
+    def _report_missed(self, missed: list[MissedOccurrence]) -> None:
+        """Say what came due while the machine was off, once and concisely.
+
+        A list beats a pile of individual nudges at breakfast; the ones worth
+        acting on have already been re-raised through the notifier.
+        """
+        if not missed:
+            return
+        runtime = self._require_runtime()
+        reraised = [m for m in missed if m.reraised]
+        let_go = [m for m in missed if not m.reraised]
+
+        report = [f"  While I was off, {len(missed)} came due:"]
+        for occurrence in sorted(missed, key=lambda m: m.due_at):
+            when = occurrence.due_at.astimezone(runtime.zone).strftime("%a %H:%M")
+            marker = "resent" if occurrence.reraised else "let go"
+            report.append(f"    {when}  {occurrence.title}  ({marker})")
+        newline = chr(10)
+        print(newline.join(report) + newline, flush=True)
+
+        log.info(
+            "missed %d occurrences: %d re-raised, %d discarded",
+            len(missed),
+            len(reraised),
+            len(let_go),
+        )
 
     def _print_next_due(self) -> None:
         runtime = self._require_runtime()
