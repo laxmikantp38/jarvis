@@ -6,6 +6,7 @@ Secrets are deliberately absent — those come from the credential store.
 
 from __future__ import annotations
 
+from datetime import time
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -55,6 +56,25 @@ class NotificationSettings(BaseModel):
         return value
 
 
+class ContentSettings(BaseModel):
+    check_at: str = "10:00"
+    horizon_days: int = Field(default=2, ge=1)
+
+    @property
+    def check_time(self) -> time:
+        return time.fromisoformat(self.check_at)
+
+    @field_validator("check_at")
+    @classmethod
+    def parseable_time(cls, value: str) -> str:
+        try:
+            time.fromisoformat(value)
+        except ValueError as exc:
+            msg = f"expected a time like '10:00', got {value!r}"
+            raise ValueError(msg) from exc
+        return value
+
+
 class ServerSettings(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8420
@@ -95,6 +115,7 @@ class Settings(BaseSettings):
 
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    content: ContentSettings = Field(default_factory=ContentSettings)
     server: ServerSettings = Field(default_factory=ServerSettings)
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
 

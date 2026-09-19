@@ -13,12 +13,17 @@ from zoneinfo import ZoneInfo
 from aos.adapters.channel.stub import StubChannel
 from aos.adapters.channel.telegram_channel import TelegramChannel
 from aos.adapters.notification.channel_notifier import ChannelNotifier
+from aos.adapters.persistence.sqlite.content_repository import (
+    SqliteDailyCheckLog,
+    SqliteFootageRepository,
+)
 from aos.adapters.persistence.sqlite.engine import create_sqlite_engine, session_factory
 from aos.adapters.persistence.sqlite.trigger_repository import SqliteTriggerRepository
 from aos.adapters.system.file_heartbeat import FileHeartbeat
 from aos.adapters.system.keyring_secrets import KeyringSecretStore
 from aos.adapters.system.settings import Settings
 from aos.adapters.system.system_clock import SystemClock
+from aos.app.content.footage_watch import FootageWatch
 from aos.app.intake.router import Intake
 from aos.app.scheduling.scheduler import Scheduler
 from aos.common import paths
@@ -37,9 +42,11 @@ class Runtime:
     zone: ZoneInfo
     heartbeat: FileHeartbeat
     triggers: SqliteTriggerRepository
+    footage: SqliteFootageRepository
     channels: list[Channel]
     notifier: ChannelNotifier
     scheduler: Scheduler
+    footage_watch: FootageWatch
     intake: Intake
 
 
@@ -72,7 +79,9 @@ def build(settings: Settings) -> Runtime:
     environment = settings.environment
 
     engine = create_sqlite_engine(paths.database_file(environment))
-    triggers = SqliteTriggerRepository(session_factory(engine))
+    sessions = session_factory(engine)
+    triggers = SqliteTriggerRepository(sessions)
+    footage = SqliteFootageRepository(sessions)
     channels = _channels_for(settings)
     notifier = ChannelNotifier(
         channels=channels,
@@ -87,13 +96,24 @@ def build(settings: Settings) -> Runtime:
         zone=zone,
         heartbeat=FileHeartbeat(paths.state_dir(environment) / "heartbeat"),
         triggers=triggers,
+        footage=footage,
         channels=channels,
         notifier=notifier,
         scheduler=Scheduler(triggers, notifier, zone),
+        footage_watch=FootageWatch(
+            footage=footage,
+            checks=SqliteDailyCheckLog(sessions),
+            notifier=notifier,
+            zone=zone,
+            check_at=settings.content.check_time,
+            horizon_days=settings.content.horizon_days,
+        ),
         intake=Intake(
             triggers=triggers,
+            footage=footage,
             zone=zone,
             agent_name=settings.agent_name,
+            horizon_days=settings.content.horizon_days,
             now=utc_now,
         ),
     )

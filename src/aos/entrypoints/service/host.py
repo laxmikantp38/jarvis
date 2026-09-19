@@ -194,12 +194,19 @@ class ServiceHost:
 
     def _serve(self) -> None:
         runtime = self._require_runtime()
-        runtime.heartbeat.beat()
         log.info("scheduler running; ctrl-c to stop")
+        # Work first, then wait. Otherwise a check that is already due sits idle
+        # for a full tick after every start.
+        self._work(runtime)
         while not self._stop.wait(TICK.total_seconds()):
-            runtime.scheduler.tick(utc_now())
-            runtime.notifier.release_due()
-            runtime.heartbeat.beat()
+            self._work(runtime)
+
+    def _work(self, runtime: Runtime) -> None:
+        now = utc_now()
+        runtime.scheduler.tick(now)
+        runtime.footage_watch.run_if_due(now)
+        runtime.notifier.release_due()
+        runtime.heartbeat.beat()
 
     def _install_signal_handlers(self) -> None:
         def handle(signum: int, _frame: object) -> None:

@@ -36,6 +36,13 @@ quiet_hours = "23:45-05:45"
 # Windows where an interruption would be unwelcome, e.g. the client standup.
 blackouts = ["20:00-20:30"]
 
+[content]
+# You publish daily. This is the morning look at whether tonight has
+# anything behind it - early enough to still do something about it.
+check_at = "10:00"
+# Warn when fewer than this many days of footage remain.
+horizon_days = 2
+
 [server]
 # The local UI binds to loopback only and is never reachable off this machine (AD-5).
 host = "127.0.0.1"
