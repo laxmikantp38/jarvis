@@ -123,7 +123,9 @@ class TestWhatOutranksWhat:
 class TestLiveUserFloor:
     def test_harm_to_live_users_cannot_be_outranked_by_tidying(self) -> None:
         """Whatever else is true, this does not sink below the floor."""
-        result = score(Inputs(revenue_impact=Decimal(0), effort=Decimal(1), affects_live_users=True))
+        result = score(
+            Inputs(revenue_impact=Decimal(0), effort=Decimal(1), affects_live_users=True)
+        )
 
         assert result.value >= LIVE_HARM_FLOOR
         assert result.floored_for_live_harm
@@ -168,7 +170,6 @@ def a_day() -> list[Commitment]:
 def a_task(
     title: str,
     minutes: int = 30,
-    band: Band = Band.P2,
     value: str = "0.5",
     attention: Attention = Attention.SHALLOW,
     *,
@@ -178,7 +179,7 @@ def a_task(
         task_id=title,
         title=title,
         project_key="railzy",
-        band=band,
+        band=band_for(Decimal(value)),
         score=Decimal(value),
         minutes=minutes,
         attention=attention,
