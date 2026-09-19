@@ -18,7 +18,9 @@ from aos.common import paths
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Without this, alembic silently disables every logger the application
+    # already configured - including, when driven from a test, caplog's.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

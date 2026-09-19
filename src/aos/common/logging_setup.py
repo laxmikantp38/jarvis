@@ -14,6 +14,7 @@ from typing import Any
 from aos.common.timeutil import isoformat_utc, utc_now
 
 REDACTED = "[redacted]"
+_OURS = "_aos_handler"
 # Masking anything shorter would redact ordinary words out of every log line.
 SHORTEST_MASKABLE_SECRET = 4
 
@@ -74,10 +75,14 @@ def configure(level: str, log_directory: Path | None, json_file: bool) -> None:
     """Console for a human, JSON on disk for the machine."""
     root = logging.getLogger()
     root.setLevel(level.upper())
+    # Remove only what we installed. Tearing out every root handler would take
+    # a host application's logging with it - and pytest's caplog handler too.
     for existing in list(root.handlers):
-        root.removeHandler(existing)
+        if getattr(existing, _OURS, False):
+            root.removeHandler(existing)
 
     console = logging.StreamHandler()
+    setattr(console, _OURS, True)
     console.setFormatter(_ConsoleFormatter())
     console.addFilter(_RedactionFilter())
     root.addHandler(console)
@@ -86,6 +91,7 @@ def configure(level: str, log_directory: Path | None, json_file: bool) -> None:
         log_directory.mkdir(parents=True, exist_ok=True)
         stamp = utc_now().strftime("%Y-%m-%d")
         handler = logging.FileHandler(log_directory / f"{stamp}.jsonl", encoding="utf-8")
+        setattr(handler, _OURS, True)
         handler.setFormatter(_JsonFormatter())
         handler.addFilter(_RedactionFilter())
         root.addHandler(handler)
