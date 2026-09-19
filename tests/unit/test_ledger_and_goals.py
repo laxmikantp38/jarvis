@@ -64,13 +64,13 @@ class GoalStore:
     def all(self) -> list:
         return list(self.items.values())
 
-    def get(self, key: str):  # noqa: ANN201
+    def get(self, key: str):
         return self.items.get(key)
 
     def children_of(self, key: str) -> list:
         return [g for g in self.items.values() if g.parent_key == key]
 
-    def save(self, goal) -> None:  # noqa: ANN001
+    def save(self, goal) -> None:
         self.items[goal.key] = goal
 
     def add_missing(self, goals: list) -> list[str]:
@@ -84,7 +84,7 @@ class Events:
     def __init__(self) -> None:
         self.appended: list = []
 
-    def append(self, event) -> None:  # noqa: ANN001
+    def append(self, event) -> None:
         self.appended.append(event)
 
     def recent(self, limit: int = 50) -> list:
@@ -231,7 +231,10 @@ class TestBurnAndWaste:
         assert book.cancel_candidates() == []
 
 
-def goals_service(revenue: Revenue, targets: Money | None = Money.of(1_00_00_000)) -> Goals:
+A_CRORE = Money.of(1_00_00_000)
+
+
+def goals_service(revenue: Revenue, targets: Money | None = A_CRORE) -> Goals:
     store = GoalStore(seed_goals(targets, START, DEADLINE))
     return Goals(goals=store, revenue=revenue, now=lambda: NOW)  # type: ignore[arg-type]
 
