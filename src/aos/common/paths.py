@@ -46,3 +46,7 @@ def lock_file(environment: str) -> Path:
 def state_dir(environment: str) -> Path:
     """Runtime state that is not the database — heartbeat, last-run markers."""
     return data_dir(environment) / "state"
+
+
+def backup_dir(environment: str) -> Path:
+    return project_root() / "backups" / environment

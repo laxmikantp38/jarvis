@@ -243,6 +243,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--set-secret", metavar="NAME", help="store a credential")
     parser.add_argument("--forget-secret", metavar="NAME", help="revoke a credential")
     parser.add_argument("--show-config", action="store_true", help="print effective settings")
+    parser.add_argument("--backup", action="store_true", help="take a backup now")
+    parser.add_argument(
+        "--restore-drill",
+        action="store_true",
+        help="restore the latest backup to a scratch copy and verify it",
+    )
     parser.add_argument(
         "--register-startup",
         action="store_true",
@@ -275,6 +281,10 @@ def main() -> int:
         return start(environment, CLI, ["forget-secret", args.forget_secret])
     if args.show_config:
         return start(environment, CLI, ["config"])
+    if args.backup:
+        return start(environment, CLI, ["backup"])
+    if args.restore_drill:
+        return start(environment, CLI, ["restore-drill"])
     return start(environment, SERVICE, [])
 
 
