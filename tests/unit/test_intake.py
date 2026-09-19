@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
+from aos.app.finance.goals import Goals, seed_goals
+from aos.app.finance.ledger import Ledger
+from aos.app.intake.money_commands import MoneyCommands
 from aos.app.intake.router import Intake
 from aos.app.work.capture import TaskCapture
 from aos.domain.content.footage import FootageReserve
@@ -99,6 +102,62 @@ class FakeEvents:
         return list(self.appended)
 
 
+class _Revenue:
+    def __init__(self) -> None:
+        self.records: list = []
+
+    def add(self, record: object) -> None:
+        self.records.append(record)
+
+    def all(self, certainty: object = None) -> list:
+        return list(self.records)
+
+    def since(self, start: object) -> list:
+        return list(self.records)
+
+
+class _Expenses(_Revenue):
+    pass
+
+
+class _Goals:
+    def __init__(self) -> None:
+        from datetime import date
+
+        self.items = {
+            g.key: g for g in seed_goals(None, date(2026, 8, 10), date(2027, 2, 10))
+        }
+
+    def all(self) -> list:
+        return list(self.items.values())
+
+    def get(self, key: str):
+        return self.items.get(key)
+
+    def children_of(self, key: str) -> list:
+        return [g for g in self.items.values() if g.parent_key == key]
+
+    def save(self, goal) -> None:
+        self.items[goal.key] = goal
+
+    def add_missing(self, goals: list) -> list[str]:
+        return []
+
+
+def _money_commands() -> MoneyCommands:
+    revenue = _Revenue()
+    ledger = Ledger(
+        revenue=revenue,  # type: ignore[arg-type]
+        expenses=_Expenses(),  # type: ignore[arg-type]
+        events=FakeEvents(),  # type: ignore[arg-type]
+        now=lambda: NOW,
+    )
+    return MoneyCommands(
+        ledger=ledger,
+        goals=Goals(goals=_Goals(), revenue=revenue, now=lambda: NOW),  # type: ignore[arg-type]
+    )
+
+
 def build(
     triggers: list[Trigger] | None = None, clips: int = 0
 ) -> tuple[Intake, list[str], FakeFootage]:
@@ -111,6 +170,7 @@ def build(
         footage=footage,
         projects=projects,
         tasks=tasks,
+        money=_money_commands(),
         capture=TaskCapture(
             projects=projects,  # type: ignore[arg-type]
             tasks=tasks,  # type: ignore[arg-type]
@@ -219,3 +279,68 @@ class TestFootageCommands:
 
         assert footage.reserve.clips_available == 3
         assert "Tell me a number" in replies[0]
+
+
+class TestMoneyCommands:
+    def test_an_earning_is_logged_from_a_sentence(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("earned 40k from client"), replies.append)
+
+        assert "40,000" in replies[0] or "40.00" in replies[0]
+        assert "freelance" in replies[0], "client maps to the freelance stream"
+
+    def test_shorthand_scales_are_understood(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("earned 2 lakh from consulting"), replies.append)
+
+        assert "lakh" in replies[0]
+
+    def test_an_invoice_is_expected_rather_than_banked(self) -> None:
+        """Money that has not arrived must not look like money that has."""
+        intake, replies, _ = build()
+        intake.handle(message("earned 50k expected from consulting"), replies.append)
+
+        assert "Expected" in replies[0]
+
+    def test_an_amountless_message_asks_for_one(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("earned some money"), replies.append)
+
+        assert "How much?" in replies[0]
+
+    def test_an_expense_is_logged_against_a_project(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("spent 2400 on tools for railzy"), replies.append)
+
+        assert "railzy" in replies[0]
+
+    def test_the_position_shows_gross_spent_and_net(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("money"), replies.append)
+
+        assert "Gross" in replies[0]
+        assert "Net" in replies[0]
+
+    def test_a_goal_with_no_target_says_so_rather_than_showing_zero(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("goal"), replies.append)
+
+        assert "No target set" in replies[0]
+
+    def test_help_lists_the_money_commands(self) -> None:
+        intake, replies, _ = build()
+        intake.handle(message("help"), replies.append)
+
+        assert "earned" in replies[0]
+        assert "goal" in replies[0]
+
+
+class TestDispatch:
+    def test_task_and_tasks_are_different_commands(self) -> None:
+        """A prefix matcher that ignored word boundaries would confuse these."""
+        intake, replies, _ = build()
+        intake.handle(message("tasks"), replies.append)
+        intake.handle(message("task buy milk"), replies.append)
+
+        assert "Nothing open" in replies[0]
+        assert "Noted against" in replies[1]

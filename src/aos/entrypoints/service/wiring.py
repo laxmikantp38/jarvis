@@ -18,6 +18,11 @@ from aos.adapters.persistence.sqlite.content_repository import (
     SqliteFootageRepository,
 )
 from aos.adapters.persistence.sqlite.engine import create_sqlite_engine, session_factory
+from aos.adapters.persistence.sqlite.finance_repository import (
+    SqliteExpenseRepository,
+    SqliteGoalRepository,
+    SqliteRevenueRepository,
+)
 from aos.adapters.persistence.sqlite.trigger_repository import SqliteTriggerRepository
 from aos.adapters.persistence.sqlite.work_repository import (
     SqliteEventStore,
@@ -30,6 +35,9 @@ from aos.adapters.system.keyring_secrets import KeyringSecretStore
 from aos.adapters.system.settings import Settings
 from aos.adapters.system.system_clock import SystemClock
 from aos.app.content.footage_watch import FootageWatch
+from aos.app.finance.goals import Goals
+from aos.app.finance.ledger import Ledger
+from aos.app.intake.money_commands import MoneyCommands
 from aos.app.intake.router import Intake
 from aos.app.scheduling.scheduler import Scheduler
 from aos.app.work.capture import TaskCapture
@@ -54,6 +62,9 @@ class Runtime:
     tasks: SqliteTaskRepository
     events: SqliteEventStore
     facts: SqliteUserFactRepository
+    goals: SqliteGoalRepository
+    ledger: Ledger
+    goal_engine: Goals
     channels: list[Channel]
     notifier: ChannelNotifier
     scheduler: Scheduler
@@ -97,6 +108,11 @@ def build(settings: Settings) -> Runtime:
     tasks = SqliteTaskRepository(sessions)
     events = SqliteEventStore(sessions)
     facts = SqliteUserFactRepository(sessions)
+    goal_store = SqliteGoalRepository(sessions)
+    revenue = SqliteRevenueRepository(sessions)
+    expenses = SqliteExpenseRepository(sessions)
+    ledger = Ledger(revenue=revenue, expenses=expenses, events=events, now=utc_now)
+    goal_engine = Goals(goals=goal_store, revenue=revenue, now=utc_now)
     capture = TaskCapture(projects=projects, tasks=tasks, events=events, now=utc_now)
     channels = _channels_for(settings)
     notifier = ChannelNotifier(
@@ -117,6 +133,9 @@ def build(settings: Settings) -> Runtime:
         tasks=tasks,
         events=events,
         facts=facts,
+        goals=goal_store,
+        ledger=ledger,
+        goal_engine=goal_engine,
         channels=channels,
         notifier=notifier,
         scheduler=Scheduler(triggers, notifier, zone),
@@ -134,6 +153,7 @@ def build(settings: Settings) -> Runtime:
             projects=projects,
             tasks=tasks,
             capture=capture,
+            money=MoneyCommands(ledger=ledger, goals=goal_engine),
             zone=zone,
             agent_name=settings.agent_name,
             horizon_days=settings.content.horizon_days,

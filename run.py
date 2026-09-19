@@ -116,6 +116,28 @@ def ensure_config() -> bool:
     return True
 
 
+def report_config_drift() -> bool:
+    """Tell the user when an upgrade added settings their file does not have.
+
+    config.toml is machine state and is never overwritten, so new options are
+    otherwise invisible: the defaults quietly apply and a feature looks broken.
+    """
+    if not CONFIG.exists() or not CONFIG_EXAMPLE.exists():
+        return False
+
+    import tomllib
+
+    current = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
+    shipped = tomllib.loads(CONFIG_EXAMPLE.read_text(encoding="utf-8"))
+    missing = sorted(set(shipped) - set(current))
+    if not missing:
+        return False
+
+    say(f"new settings are available and your config.toml does not have them: {', '.join(missing)}")
+    say(f"compare it against {CONFIG_EXAMPLE.name} when you get a moment")
+    return True
+
+
 def ensure_directories(environment: str) -> bool:
     made = False
     for directory in (ROOT / "data" / environment / "state", ROOT / "logs" / environment):
@@ -168,6 +190,7 @@ def setup(environment: str) -> None:
         ensure_config(),
         ensure_directories(environment),
         ensure_migrations(environment),
+        report_config_drift(),
     ]
     if any(steps):
         say("setup complete")

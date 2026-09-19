@@ -36,6 +36,13 @@ quiet_hours = "23:45-05:45"
 # Windows where an interruption would be unwelcome, e.g. the client standup.
 blackouts = ["20:00-20:30"]
 
+[goals]
+# The headline target. Leave target blank to run without one - the engine
+# is goal-agnostic and works perfectly well with nothing set.
+target = "10000000"   # rupees
+start = "2026-08-10"
+deadline = "2027-02-10"
+
 [content]
 # You publish daily. This is the morning look at whether tonight has
 # anything behind it - early enough to still do something about it.

@@ -15,7 +15,21 @@ EXIT_LOCK_HELD = 2
 EXIT_STARTUP_FAILED = 3
 
 
+def _make_output_safe() -> None:
+    """A Windows console defaults to a codepage that cannot encode much.
+
+    Without this an ordinary character in a project name or a note raises
+    UnicodeEncodeError and takes the service down, which is an absurd way to
+    lose a scheduler.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> int:
+    _make_output_safe()
     try:
         settings = load_settings()
     except Exception as exc:

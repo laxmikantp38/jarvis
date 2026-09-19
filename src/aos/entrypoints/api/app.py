@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 from aos.common.timeutil import utc_now
+from aos.entrypoints.api.money_pages import register_money_pages
 from aos.entrypoints.api.render import Chrome, empty, instrument, kv, page, table
 
 if TYPE_CHECKING:
@@ -264,6 +265,7 @@ def create_app(runtime: Runtime) -> FastAPI:
             ),
         )
 
+    register_money_pages(app, runtime, chrome)
     _register_placeholders(app, chrome)
     return app
 
@@ -276,8 +278,6 @@ def _register_placeholders(app: FastAPI, chrome: Callable[[], Chrome]) -> None:
     """
     pending = {
         "/agent": ("Agent", "Who is working, and what needs your approval.", "epic 5"),
-        "/goals": ("Goals", "Targets, required pace, trajectory and the gap.", "epic 3"),
-        "/revenue": ("Revenue", "Earnings, expenses and net position.", "epic 3"),
         "/decisions": ("Decisions", "What was chosen, why, and whether it still holds.", "epic 7"),
         "/experiments": ("Experiments", "Hypotheses that reach a conclusion.", "epic 7"),
     }

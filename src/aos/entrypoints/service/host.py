@@ -15,6 +15,7 @@ from datetime import timedelta
 
 from aos.adapters.system.file_instance_lock import FileInstanceLock
 from aos.adapters.system.settings import Settings
+from aos.app.finance.goals import seed_goals
 from aos.app.scheduling.routine import default_routine
 from aos.app.scheduling.scheduler import MissedOccurrence
 from aos.app.work.projects import default_projects
@@ -113,6 +114,8 @@ class ServiceHost:
             print(f"  Tracking: {', '.join(new_projects)}." + chr(10), flush=True)
             log.info("seeded projects: %s", new_projects)
 
+        self._seed_goals()
+
         seeded = runtime.triggers.add_missing(default_routine())
         if seeded:
             print(f"  Set up your routine: {', '.join(seeded)}.\n", flush=True)
@@ -149,6 +152,28 @@ class ServiceHost:
             len(reraised),
             len(let_go),
         )
+
+    def _seed_goals(self) -> None:
+        """Seed the tree once, then keep it in step with what has arrived."""
+        runtime = self._require_runtime()
+        goals = runtime.settings.goals
+        new_goals = runtime.goals.add_missing(
+            seed_goals(goals.target_money, goals.start_date, goals.deadline_date)
+        )
+        if new_goals:
+            log.info("seeded goals: %s", new_goals)
+        runtime.goal_engine.sync_root_target(goals.target_money)
+        runtime.goal_engine.refresh_from_records()
+
+        standing = runtime.goal_engine.standing()
+        if standing is not None and standing.assessment.projects:
+            goal = standing.goal
+            print(
+                f"  Goal:       {goal.describe_value(goal.current)} of "
+                f"{goal.describe_value(goal.target_or_zero)} "
+                f"- {standing.assessment.verdict.value}" + chr(10),
+                flush=True,
+            )
 
     def _print_next_due(self) -> None:
         runtime = self._require_runtime()

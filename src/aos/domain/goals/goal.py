@@ -105,6 +105,16 @@ class Goal:
         return self.target is not None
 
     @property
+    def target_or_zero(self) -> Decimal:
+        """For display only.
+
+        `target or 0` kept producing Decimal | int at call sites; this keeps
+        the type honest and the intent obvious. Logic that must distinguish
+        "no target" from "zero" uses `allocated`, never this.
+        """
+        return self.target if self.target is not None else Decimal(0)
+
+    @property
     def remaining(self) -> Decimal | None:
         if self.target is None:
             return None

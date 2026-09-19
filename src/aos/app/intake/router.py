@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from aos.app.intake.money_commands import MoneyCommands
 from aos.app.work.capture import TaskCapture
 from aos.domain.content.footage import FootageReserve, assess
 from aos.ports.channel import InboundMessage
@@ -24,6 +25,22 @@ from aos.ports.persistence.work import ProjectRepository, TaskRepository
 log = logging.getLogger(__name__)
 
 Reply = Callable[[str], None]
+Matcher = Callable[[str], bool]
+Responder = Callable[[str], str]
+
+
+def _exactly(*words: str) -> Matcher:
+    options = set(words)
+    return lambda text: text in options
+
+
+def _starting(*prefixes: str) -> Matcher:
+    """A verb followed by something, so "task" alone does not match "tasks"."""
+    return lambda text: any(text == prefix or text.startswith(prefix + " ") for prefix in prefixes)
+
+
+def _after(verb: str, raw: str) -> str:
+    return raw[len(verb) :].strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,37 +50,46 @@ class Intake:
     projects: ProjectRepository
     tasks: TaskRepository
     capture: TaskCapture
+    money: MoneyCommands
     zone: ZoneInfo
     agent_name: str
     horizon_days: int
     now: Callable[[], datetime]
 
     def handle(self, message: InboundMessage, reply: Reply) -> None:
-        text = message.text.strip().lower()
+        """Dispatch, not a ladder.
+
+        An if/elif chain grows a branch per capability and eventually becomes
+        the thing nobody wants to touch. A table adds a row instead.
+        """
+        raw = message.text.strip()
+        text = raw.lower()
         log.info("inbound from %s: %s", message.channel, text[:80])
 
-        if text in {"next", "what's next", "whats next"}:
-            reply(self._next_up())
-        elif text in {"status", "how are you"}:
-            reply(self._status())
-        elif text.startswith("task "):
-            reply(self._capture(message.text.strip()[5:]))
-        elif text in {"tasks", "todo"}:
-            reply(self._tasks())
-        elif text.startswith("done "):
-            reply(self._complete(text[5:].strip()))
-        elif text == "projects":
-            reply(self._projects())
-        elif text.startswith("footage"):
-            reply(self._footage(text))
-        elif text in {"help", "?"}:
-            reply(self._help())
-        else:
-            # Saying so beats inventing an answer.
-            reply(
-                "I don't understand that yet. Try 'help' to see what I can do."
-                "Anything else has to wait until I learn to do it."
-            )
+        for matches, respond in self._commands():
+            if matches(text):
+                reply(respond(raw))
+                return
+
+        # Saying so beats inventing an answer.
+        reply("I don't understand that yet. Try 'help' to see what I can do.")
+
+    def _commands(self) -> list[tuple[Matcher, Responder]]:
+        """Order matters only where prefixes could overlap."""
+        return [
+            (_exactly("next", "what's next", "whats next"), lambda _: self._next_up()),
+            (_exactly("status", "how are you"), lambda _: self._status()),
+            (_starting("earned", "earn", "received", "got paid"), self.money.earned),
+            (_starting("spent", "paid", "bought"), self.money.spent),
+            (_exactly("money", "net", "position"), lambda _: self.money.position()),
+            (_exactly("goal", "goals", "target", "trajectory"), lambda _: self.money.standing()),
+            (_starting("task"), lambda raw: self._capture(_after("task", raw))),
+            (_exactly("tasks", "todo"), lambda _: self._tasks()),
+            (_starting("done"), lambda raw: self._complete(_after("done", raw))),
+            (_exactly("projects"), lambda _: self._projects()),
+            (_starting("footage"), lambda raw: self._footage(raw.lower())),
+            (_exactly("help", "?"), lambda _: self._help()),
+        ]
 
     def _next_up(self) -> str:
         upcoming = sorted(
@@ -85,8 +111,9 @@ class Intake:
 
     def _help(self) -> str:
         return (
-            "I understand: next, status, tasks, task <what>, done <n>, "
-            "projects, footage, footage <n>, help."
+            "I understand: next, status, goal, money, tasks, task <what>, "
+            "done <n>, projects, footage, footage <n>, "
+            "earned <amount> from <source>, spent <amount> on <what>, help."
         )
 
     def _capture(self, text: str) -> str:

@@ -6,7 +6,7 @@ Secrets are deliberately absent — those come from the credential store.
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import date, time, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -19,6 +19,7 @@ from pydantic_settings import (
 )
 
 from aos.common import paths
+from aos.domain.finance.money import Money
 from aos.domain.notification.policy import NotificationPolicy, TimeWindow
 
 Environment = Literal["dev", "live"]
@@ -54,6 +55,28 @@ class NotificationSettings(BaseModel):
         for window in value:
             TimeWindow.parse(window)
         return value
+
+
+class GoalSettings(BaseModel):
+    """The headline target, as configuration. Nothing in source names it."""
+
+    target: str = ""
+    start: str = ""
+    deadline: str = ""
+
+    @property
+    def target_money(self) -> Money | None:
+        return Money.of(self.target) if self.target else None
+
+    @property
+    def start_date(self) -> date:
+        return date.fromisoformat(self.start) if self.start else date.today()
+
+    @property
+    def deadline_date(self) -> date:
+        if self.deadline:
+            return date.fromisoformat(self.deadline)
+        return self.start_date + timedelta(days=180)
 
 
 class ContentSettings(BaseModel):
@@ -116,6 +139,7 @@ class Settings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
     content: ContentSettings = Field(default_factory=ContentSettings)
+    goals: GoalSettings = Field(default_factory=GoalSettings)
     server: ServerSettings = Field(default_factory=ServerSettings)
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -60,6 +60,23 @@ class Goals:
     revenue: RevenueRepository
     now: Callable[[], datetime]
     minimum_records_for_a_split: int = 5
+
+    def sync_root_target(self, target: Money | None) -> bool:
+        """The headline target is configuration, so configuration wins for it.
+
+        Children are never touched: the split is the user's to set, and a seed
+        that overwrote it would erase a decision. Only the root follows the
+        config file, because that is where AD-12 says it lives.
+        """
+        root = self.goals.get(ROOT_KEY)
+        if root is None:
+            return False
+        wanted = Decimal(target.paise) if target else None
+        if root.target == wanted:
+            return False
+        self.goals.save(replace(root, target=wanted))
+        log.info("root target updated from configuration")
+        return True
 
     def refresh_from_records(self) -> None:
         """Roll actual money into every monetary goal, then up the tree."""

@@ -6,7 +6,7 @@ yet say so rather than rendering a zero (NFR-18).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -14,6 +14,8 @@ from fastapi.testclient import TestClient
 
 from aos.adapters.notification.channel_notifier import ChannelNotifier
 from aos.adapters.system.settings import Settings
+from aos.app.finance.goals import Goals, seed_goals
+from aos.app.finance.ledger import Ledger
 from aos.domain.content.footage import FootageReserve
 from aos.domain.notification.policy import NotificationPolicy
 from aos.domain.scheduling.recurrence import EVERY_DAY, Recurrence
@@ -97,6 +99,41 @@ class Channel:
     def stop(self) -> None: ...
 
 
+class _Ledger:
+    """Stands in for both revenue and expense repositories."""
+
+    def add(self, record: object) -> None: ...
+
+    def all(self, certainty: object = None) -> list:
+        return []
+
+    def since(self, start: object) -> list:
+        return []
+
+
+class _GoalStore:
+    def __init__(self) -> None:
+        self.items = {
+            g.key: g
+            for g in seed_goals(None, date(2026, 8, 10), date(2027, 2, 10))
+        }
+
+    def all(self) -> list:
+        return list(self.items.values())
+
+    def get(self, key: str):
+        return self.items.get(key)
+
+    def children_of(self, key: str) -> list:
+        return [g for g in self.items.values() if g.parent_key == key]
+
+    def save(self, goal) -> None:
+        self.items[goal.key] = goal
+
+    def add_missing(self, goals: list) -> list[str]:
+        return []
+
+
 class Runtime:
     """Only the attributes the pages touch."""
 
@@ -110,6 +147,19 @@ class Runtime:
         self.footage = repo
         self.facts = overrides.get("facts", Facts())
         self.channels = overrides.get("channels", [Channel("console", real=False)])
+        revenue = _Ledger()
+        self.goals = _GoalStore()
+        self.ledger = Ledger(
+            revenue=revenue,  # type: ignore[arg-type]
+            expenses=_Ledger(),  # type: ignore[arg-type]
+            events=repo,  # type: ignore[arg-type]
+            now=lambda: NOW,
+        )
+        self.goal_engine = Goals(
+            goals=self.goals,  # type: ignore[arg-type]
+            revenue=revenue,  # type: ignore[arg-type]
+            now=lambda: NOW,
+        )
         self.notifier = ChannelNotifier(
             channels=[Channel("console", real=False)],  # type: ignore[list-item]
             policy=NotificationPolicy(daily_budget=12),
@@ -142,10 +192,10 @@ class TestEverySectionExists:
         assert "<html" in response.text
 
     def test_sections_without_a_feature_yet_say_which_epic_brings_them(self) -> None:
-        body = client(Runtime(Repo())).get("/goals").text
+        body = client(Runtime(Repo())).get("/agent").text
 
         assert "Nothing here yet" in body
-        assert "epic 3" in body
+        assert "epic 5" in body
 
 
 class TestHonestEmptyStates:
