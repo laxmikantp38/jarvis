@@ -6,9 +6,12 @@ from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
 from aos.app.intake.router import Intake
+from aos.app.work.capture import TaskCapture
 from aos.domain.content.footage import FootageReserve
 from aos.domain.scheduling.recurrence import EVERY_DAY, Recurrence
 from aos.domain.scheduling.trigger import NotificationClass, Trigger
+from aos.domain.work.project import Project
+from aos.domain.work.task import Task
 from aos.ports.channel import InboundMessage
 
 KOLKATA = ZoneInfo("Asia/Kolkata")
@@ -54,14 +57,66 @@ class FakeFootage:
         self.reserve = reserve
 
 
+class FakeProjects:
+    def __init__(self) -> None:
+        self.items = [
+            Project(key="railzy", name="Railzy", objective="Live product."),
+            Project(key="personal", name="Personal", objective="Everything else."),
+        ]
+
+    def all(self) -> list[Project]:
+        return list(self.items)
+
+    def get(self, key: str) -> Project | None:
+        return next((p for p in self.items if p.key == key), None)
+
+    def add_missing(self, projects: list[Project]) -> list[str]:
+        return []
+
+
+class FakeTasks:
+    def __init__(self) -> None:
+        self.items: list[Task] = []
+
+    def open_tasks(self, project_key: str | None = None) -> list[Task]:
+        return [t for t in self.items if t.is_open]
+
+    def get(self, task_id: str) -> Task | None:
+        return next((t for t in self.items if t.id == task_id), None)
+
+    def save(self, task: Task) -> None:
+        self.items = [t for t in self.items if t.id != task.id] + [task]
+
+
+class FakeEvents:
+    def __init__(self) -> None:
+        self.appended: list[object] = []
+
+    def append(self, event: object) -> None:
+        self.appended.append(event)
+
+    def recent(self, limit: int = 50) -> list[object]:
+        return list(self.appended)
+
+
 def build(
     triggers: list[Trigger] | None = None, clips: int = 0
 ) -> tuple[Intake, list[str], FakeFootage]:
     replies: list[str] = []
     footage = FakeFootage(clips)
+    projects = FakeProjects()
+    tasks = FakeTasks()
     intake = Intake(
         triggers=FakeTriggers(triggers or []),
         footage=footage,
+        projects=projects,
+        tasks=tasks,
+        capture=TaskCapture(
+            projects=projects,  # type: ignore[arg-type]
+            tasks=tasks,  # type: ignore[arg-type]
+            events=FakeEvents(),  # type: ignore[arg-type]
+            now=lambda: NOW,
+        ),
         zone=KOLKATA,
         agent_name="Friday",
         horizon_days=2,
@@ -107,7 +162,7 @@ def test_an_unknown_command_says_so_rather_than_inventing() -> None:
     intake.handle(message("book me a flight to Goa"), replies.append)
 
     assert "don't understand" in replies[0]
-    assert "next" in replies[0], "and it says what it can do"
+    assert "help" in replies[0], "and it points at what it can do"
 
 
 def test_commands_are_case_and_space_insensitive() -> None:

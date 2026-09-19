@@ -14,10 +14,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from aos.app.work.capture import TaskCapture
 from aos.domain.content.footage import FootageReserve, assess
 from aos.ports.channel import InboundMessage
 from aos.ports.persistence.content import FootageRepository
 from aos.ports.persistence.triggers import TriggerRepository
+from aos.ports.persistence.work import ProjectRepository, TaskRepository
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +30,9 @@ Reply = Callable[[str], None]
 class Intake:
     triggers: TriggerRepository
     footage: FootageRepository
+    projects: ProjectRepository
+    tasks: TaskRepository
+    capture: TaskCapture
     zone: ZoneInfo
     agent_name: str
     horizon_days: int
@@ -41,6 +46,14 @@ class Intake:
             reply(self._next_up())
         elif text in {"status", "how are you"}:
             reply(self._status())
+        elif text.startswith("task "):
+            reply(self._capture(message.text.strip()[5:]))
+        elif text in {"tasks", "todo"}:
+            reply(self._tasks())
+        elif text.startswith("done "):
+            reply(self._complete(text[5:].strip()))
+        elif text == "projects":
+            reply(self._projects())
         elif text.startswith("footage"):
             reply(self._footage(text))
         elif text in {"help", "?"}:
@@ -48,7 +61,7 @@ class Intake:
         else:
             # Saying so beats inventing an answer.
             reply(
-                "I don't understand that yet. I can answer 'next', 'status', 'footage' or 'help'.\n"
+                "I don't understand that yet. Try 'help' to see what I can do."
                 "Anything else has to wait until I learn to do it."
             )
 
@@ -71,7 +84,41 @@ class Intake:
         return f"{self.agent_name} is running. {len(active)} triggers active. It is {local}."
 
     def _help(self) -> str:
-        return "I understand: next, status, footage, footage <n>, help."
+        return (
+            "I understand: next, status, tasks, task <what>, done <n>, "
+            "projects, footage, footage <n>, help."
+        )
+
+    def _capture(self, text: str) -> str:
+        if not text.strip():
+            return "Tell me what to capture: 'task fix the signup bug'."
+        result = self.capture.capture(text)
+        where = result.project.name if result.project else result.task.project_key
+        hedge = " (guessed)" if result.guessed_project else ""
+        return f"Noted against {where}{hedge}."
+
+    def _tasks(self) -> str:
+        open_tasks = self.tasks.open_tasks()
+        if not open_tasks:
+            return "Nothing open."
+        by_project: dict[str, list[str]] = {}
+        for index, task in enumerate(open_tasks, 1):
+            by_project.setdefault(task.project_key, []).append(f"{index}. {task.title}")
+        blocks = [f"{key}:" + chr(10) + chr(10).join(lines) for key, lines in by_project.items()]
+        return (chr(10) + chr(10)).join(blocks)
+
+    def _complete(self, reference: str) -> str:
+        open_tasks = self.tasks.open_tasks()
+        try:
+            task = open_tasks[int(reference) - 1]
+        except (ValueError, IndexError):
+            return "Which one? Use the number from 'tasks'."
+        self.tasks.save(task.completed(self.now()))
+        return f"Done: {task.title}"
+
+    def _projects(self) -> str:
+        lines = [p.describe() for p in self.projects.all()]
+        return chr(10).join(lines)
 
     def _footage(self, text: str) -> str:
         """`footage` reports; `footage 5` sets the reserve; `footage +3` adds."""

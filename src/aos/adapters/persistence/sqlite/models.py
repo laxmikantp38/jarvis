@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Time
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Time
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -48,3 +48,50 @@ class DailyCheckRow(Base):
 
     name: Mapped[str] = mapped_column(String(64), primary_key=True)
     last_local_day: Mapped[str] = mapped_column(String(10))
+
+
+class ProjectRow(Base):
+    __tablename__ = "project"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    objective: Mapped[str] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(20))
+
+
+class TaskRow(Base):
+    __tablename__ = "task"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_key: Mapped[str] = mapped_column(String(32), ForeignKey("project.key"))
+    title: Mapped[str] = mapped_column(String(300))
+    status: Mapped[str] = mapped_column(String(16))
+    attention: Mapped[str] = mapped_column(String(16))
+    # Not nullable by design: a permissive default is a leak waiting to happen.
+    confidentiality: Mapped[str] = mapped_column(String(24))
+    notes: Mapped[str] = mapped_column(String(4000), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class EventRow(Base):
+    """Append-only, enforced by database triggers (AD-8)."""
+
+    __tablename__ = "event"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    type: Mapped[str] = mapped_column(String(40))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime)
+    payload: Mapped[dict[str, str]] = mapped_column(JSON)
+    project_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    task_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+class UserFactRow(Base):
+    __tablename__ = "user_fact"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(4000))
+    confidentiality: Mapped[str] = mapped_column(String(24))
+    updated_at: Mapped[datetime] = mapped_column(DateTime)

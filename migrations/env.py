@@ -6,6 +6,7 @@ migration is always applied to the environment you are actually using.
 
 from __future__ import annotations
 
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -23,6 +24,14 @@ target_metadata = Base.metadata
 
 
 def database_url() -> str:
+    """The active environment's database, unless a caller names one explicitly.
+
+    The override exists so tests can migrate a throwaway file with the real
+    migrations rather than approximating the schema.
+    """
+    override = os.environ.get("AOS_DATABASE_OVERRIDE")
+    if override:
+        return f"sqlite+pysqlite:///{override}"
     settings = load_settings()
     return f"sqlite+pysqlite:///{paths.database_file(settings.environment)}"
 

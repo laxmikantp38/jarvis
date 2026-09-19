@@ -17,6 +17,7 @@ from aos.adapters.system.file_instance_lock import FileInstanceLock
 from aos.adapters.system.settings import Settings
 from aos.app.scheduling.routine import default_routine
 from aos.app.scheduling.scheduler import MissedOccurrence
+from aos.app.work.projects import default_projects
 from aos.common import paths
 from aos.common.logging_setup import configure
 from aos.common.timeutil import utc_now
@@ -102,6 +103,11 @@ class ServiceHost:
 
     def _prepare_schedule(self) -> None:
         runtime = self._require_runtime()
+        new_projects = runtime.projects.add_missing(default_projects())
+        if new_projects:
+            print(f"  Tracking: {', '.join(new_projects)}." + chr(10), flush=True)
+            log.info("seeded projects: %s", new_projects)
+
         seeded = runtime.triggers.add_missing(default_routine())
         if seeded:
             print(f"  Set up your routine: {', '.join(seeded)}.\n", flush=True)

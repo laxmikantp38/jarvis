@@ -19,6 +19,12 @@ from aos.adapters.persistence.sqlite.content_repository import (
 )
 from aos.adapters.persistence.sqlite.engine import create_sqlite_engine, session_factory
 from aos.adapters.persistence.sqlite.trigger_repository import SqliteTriggerRepository
+from aos.adapters.persistence.sqlite.work_repository import (
+    SqliteEventStore,
+    SqliteProjectRepository,
+    SqliteTaskRepository,
+    SqliteUserFactRepository,
+)
 from aos.adapters.system.file_heartbeat import FileHeartbeat
 from aos.adapters.system.keyring_secrets import KeyringSecretStore
 from aos.adapters.system.settings import Settings
@@ -26,6 +32,7 @@ from aos.adapters.system.system_clock import SystemClock
 from aos.app.content.footage_watch import FootageWatch
 from aos.app.intake.router import Intake
 from aos.app.scheduling.scheduler import Scheduler
+from aos.app.work.capture import TaskCapture
 from aos.common import paths
 from aos.common.timeutil import utc_now
 from aos.ports.channel import Channel
@@ -43,6 +50,10 @@ class Runtime:
     heartbeat: FileHeartbeat
     triggers: SqliteTriggerRepository
     footage: SqliteFootageRepository
+    projects: SqliteProjectRepository
+    tasks: SqliteTaskRepository
+    events: SqliteEventStore
+    facts: SqliteUserFactRepository
     channels: list[Channel]
     notifier: ChannelNotifier
     scheduler: Scheduler
@@ -82,6 +93,11 @@ def build(settings: Settings) -> Runtime:
     sessions = session_factory(engine)
     triggers = SqliteTriggerRepository(sessions)
     footage = SqliteFootageRepository(sessions)
+    projects = SqliteProjectRepository(sessions)
+    tasks = SqliteTaskRepository(sessions)
+    events = SqliteEventStore(sessions)
+    facts = SqliteUserFactRepository(sessions)
+    capture = TaskCapture(projects=projects, tasks=tasks, events=events, now=utc_now)
     channels = _channels_for(settings)
     notifier = ChannelNotifier(
         channels=channels,
@@ -97,6 +113,10 @@ def build(settings: Settings) -> Runtime:
         heartbeat=FileHeartbeat(paths.state_dir(environment) / "heartbeat"),
         triggers=triggers,
         footage=footage,
+        projects=projects,
+        tasks=tasks,
+        events=events,
+        facts=facts,
         channels=channels,
         notifier=notifier,
         scheduler=Scheduler(triggers, notifier, zone),
@@ -111,6 +131,9 @@ def build(settings: Settings) -> Runtime:
         intake=Intake(
             triggers=triggers,
             footage=footage,
+            projects=projects,
+            tasks=tasks,
+            capture=capture,
             zone=zone,
             agent_name=settings.agent_name,
             horizon_days=settings.content.horizon_days,

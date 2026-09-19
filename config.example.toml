@@ -49,7 +49,7 @@ host = "127.0.0.1"
 port = 8420
 
 [telegram]
-enabled = false
+enabled = true
 # Your own chat id, so the bot knows where to send. Message your bot once,
 # then read it from https://api.telegram.org/bot<TOKEN>/getUpdates
 chat_id = ""
